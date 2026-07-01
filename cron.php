@@ -1,6 +1,7 @@
 <?php
-date_default_timezone_set('America/Chicago');
 declare(strict_types=1);
+
+date_default_timezone_set('America/Chicago');
 
 // Ensure this script can run as long as it needs to and isn't memory capped
 set_time_limit(0);
@@ -238,11 +239,13 @@ header("Pragma: no-cache");
     h2 { font-size: 1.75rem; border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; margin: 2rem 0 1rem 0; }
     h3 { font-size: 1.125rem; color: var(--text-secondary); margin: 0; text-transform: uppercase; letter-spacing: 0.05em; }
     .section-head {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 0.5rem 1rem;
+        position: relative;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-rows: auto auto;
+        align-items: center;
+        column-gap: 1rem;
+        row-gap: 0.5rem;
         margin: 1.5rem 0 0.75rem 0;
     }
     .section-head--team {
@@ -258,25 +261,25 @@ header("Pragma: no-cache");
     }
     .section-head > h3,
     .section-head > h4 {
-        flex: 0 1 auto;
+        grid-column: 1;
+        grid-row: 1;
         margin: 0;
-        order: 1;
+        padding-right: 8rem;
     }
-    .section-head > .ai-accordion--head {
-        flex: 0 0 auto;
-        margin-left: auto;
-        order: 1;
+    .section-head > .ai-accordion--head:not([open]) {
+        grid-column: 2;
+        grid-row: 1;
+        justify-self: end;
     }
     .section-head > .ai-accordion--head[open] {
-        flex: 1 0 100%;
-        order: 2;
+        grid-column: 1 / -1;
+        grid-row: 2;
         width: 100%;
-        margin-left: 0;
     }
     .section-head > .ai-accordion--head[open] > summary {
-        display: block;
-        text-align: right;
-        margin-bottom: 0.25rem;
+        position: absolute;
+        top: 0;
+        right: 0;
     }
     .section-head > .ai-accordion--head[open] > .ai-accordion-body,
     .section-head > .ai-accordion--head[open] > .ai-sources {
@@ -335,17 +338,36 @@ header("Pragma: no-cache");
         list-style: none;
     }
     .ai-sources > summary::-webkit-details-marker { display: none; }
-    .ai-sources-list { padding: 0 0.75rem 0.75rem 0.75rem; margin: 0; list-style: none; }
+    .ai-sources-list { padding: 0.5rem 0 0.75rem; margin: 0; list-style: none; }
     .ai-sources-list li { margin-bottom: 0.5rem; }
-    .ai-sources-list a {
-        color: var(--text-primary);
-        text-decoration: none;
+    .ai-sources-list li:last-child { margin-bottom: 0; }
+    .ai-sources-list a.source-link {
         display: flex;
         align-items: flex-start;
-        gap: 0.5rem;
+        gap: 0.625rem;
+        padding: 0.625rem 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--card-bg);
+        color: var(--text-primary);
+        text-decoration: none;
         line-height: 1.4;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
-    .ai-sources-list a:hover { text-decoration: underline; }
+    .ai-sources-list a.source-link:hover {
+        border-color: #94a3b8;
+        box-shadow: var(--shadow);
+        text-decoration: none;
+    }
+    .ai-sources-list .source-link-label {
+        flex: 1;
+        font-size: 0.875rem;
+    }
+    .ai-sources-list .source-link-label::after {
+        content: ' ↗';
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+    }
     .source-badge {
         flex-shrink: 0;
         font-size: 0.65rem;
@@ -483,6 +505,12 @@ header("Pragma: no-cache");
         return takeMatch(byDateOnly);
     }
 
+    function articleSourceUrl(article) {
+        if (article.url) return article.url;
+        if (article.id) return 'https://www.espn.com/espn/story/_/id/' + encodeURIComponent(article.id);
+        return null;
+    }
+
     function buildSourcesList(articles, redditPosts) {
         const items = [];
         (articles || []).forEach(article => {
@@ -490,7 +518,7 @@ header("Pragma: no-cache");
             items.push({
                 type: 'espn',
                 label: article.headline,
-                url: null
+                url: articleSourceUrl(article),
             });
         });
         (redditPosts || []).forEach(post => {
@@ -498,7 +526,7 @@ header("Pragma: no-cache");
             items.push({
                 type: 'reddit',
                 label: post.title,
-                url: post.permalink || null
+                url: post.permalink || null,
             });
         });
         if (items.length === 0) return '';
@@ -509,10 +537,12 @@ header("Pragma: no-cache");
                 : '<span class="source-badge source-espn">ESPN</span>';
             const label = escapeHTML(item.label);
             if (item.url) {
-                html += '<li><a href="' + escapeHTML(item.url) + '" target="_blank" rel="noopener noreferrer">'
-                    + badge + '<span>' + label + '</span></a></li>';
+                html += '<li><a class="source-link" href="' + escapeHTML(item.url)
+                    + '" target="_blank" rel="noopener noreferrer">'
+                    + badge + '<span class="source-link-label">' + label + '</span></a></li>';
             } else {
-                html += '<li>' + badge + '<span>' + label + '</span></li>';
+                html += '<li class="source-link">' + badge
+                    + '<span class="source-link-label">' + label + '</span></li>';
             }
         });
         html += '</ul>';
@@ -652,6 +682,7 @@ header("Pragma: no-cache");
 
         let html = '';
 
+        // Omit the <h2> city name if the 'All Cities' option is selected
         if (!cityData.is_all) {
             html += '<h2>' + escapeHTML(cityData.label) + '</h2>';
         }
