@@ -1,191 +1,5 @@
 <?php
-declare(strict_types=1);
-
-date_default_timezone_set('America/Chicago');
-
-// Ensure this script can run as long as it needs to and isn't memory capped
-set_time_limit(0);
-ini_set('memory_limit', '256M');
-
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/api.php';
-
-// 1. Build an array of EVERY team's URL across ALL cities
-$urls = [];
-foreach ($CITIES as $cityKey => $cityData) {
-    foreach ($cityData['teams'] as $i => $team) {
-        $sportInfo = $SPORT_LABELS[$team['league']] ?? null;
-        if (!$sportInfo) {
-            continue;
-        }
-        $requestKey = "{$cityKey}_{$i}";
-        $urls[$requestKey] = schedule_url($sportInfo['sport'], $team['league'], $team['abbr']);
-    }
-}
-
-// 2. Fetch all URLs in parallel
-$scheduleResponses = fetch_json_multi($urls);
-
-// 3. Process the results into a structured pre-computed database
-$database = [];
-$oneMonthAgo = strtotime('-1 month');
-
-foreach ($CITIES as $cityKey => $cityData) {
-    $leaguesData = [];
-    
-    // Initialize leagues
-    foreach ($cityData['teams'] as $team) {
-        $leagueKey = strtoupper($team['league']);
-        if (!isset($leaguesData[$leagueKey])) {
-            $leaguesData[$leagueKey] = [
-                'latest_timestamp' => 0,
-                'games'            => []
-            ];
-        }
-    }
-
-    // Process games
-    foreach ($cityData['teams'] as $i => $team) {
-        $leagueKey  = strtoupper($team['league']);
-        $sportInfo  = $SPORT_LABELS[$team['league']] ?? null;
-        $requestKey = "{$cityKey}_{$i}";
-        
-        if (!$sportInfo) continue;
-
-        $games = last_completed_games($scheduleResponses[$requestKey] ?? null, 2);
-
-        foreach ($games as $event) {
-            $gameTimestamp = isset($event['date']) ? strtotime($event['date']) : 0;
-
-            if ($gameTimestamp < $oneMonthAgo) continue;
-
-            $result = summarize_game($event, $team['abbr']);
-            if (!$result) continue;
-
-            $gameDateStr   = date('Y-m-d', $gameTimestamp);
-            $todayStr      = date('Y-m-d');
-            $yesterdayStr  = date('Y-m-d', strtotime('yesterday'));
-            $twoDaysAgoStr = date('Y-m-d', strtotime('-2 days'));
-
-            if ($gameDateStr === $todayStr) {
-                $relativeDate = 'Today';
-            } elseif ($gameDateStr === $yesterdayStr) {
-                $relativeDate = 'Yesterday';
-            } elseif ($gameDateStr === $twoDaysAgoStr) {
-                $relativeDate = '2 days ago';
-            } else {
-                $relativeDate = date('M j', $gameTimestamp);
-            }
-
-            $outcome = $result['won'] ? 'Won' : 'Lost';
-            $vsAt    = $result['is_home'] ? 'vs' : '@';
-
-            $leaguesData[$leagueKey]['games'][] = [
-                'timestamp'  => $gameTimestamp,
-                'game_id'    => $event['id'] ?? null,
-                'team_name'  => $team['name'],
-                'abbr'       => $team['abbr'],
-                'league_key' => $team['league'],
-                'label'      => $sportInfo['label'],
-                'outcome'    => $outcome,
-                'vsAt'       => $vsAt,
-                'opponent'   => $result['opponent'],
-                'team_score' => $result['team_score'],
-                'opp_score'  => $result['opp_score'],
-                'date_str'   => $relativeDate,
-                'date_iso'   => $gameDateStr,
-            ];
-
-            if ($gameTimestamp > $leaguesData[$leagueKey]['latest_timestamp']) {
-                $leaguesData[$leagueKey]['latest_timestamp'] = $gameTimestamp;
-            }
-        }
-    }
-
-    // Sort leagues by latest game, and games within leagues by newest first
-    uasort($leaguesData, function ($a, $b) {
-        return $b['latest_timestamp'] <=> $a['latest_timestamp'];
-    });
-
-    foreach ($leaguesData as &$data) {
-        usort($data['games'], function ($a, $b) {
-            return $b['timestamp'] <=> $a['timestamp'];
-        });
-    }
-    unset($data);
-
-    $database[$cityKey] = [
-        'label'   => $cityData['label'],
-        'is_all'  => false,
-        'leagues' => $leaguesData
-    ];
-}
-
-// 4. Build the master "All Cities" aggregate dataset
-$allLeaguesData = [];
-
-// Initialize every league that exists across any city
-foreach ($CITIES as $cityData) {
-    foreach ($cityData['teams'] as $team) {
-        $leagueKey = strtoupper($team['league']);
-        if (!isset($allLeaguesData[$leagueKey])) {
-            $allLeaguesData[$leagueKey] = [
-                'latest_timestamp' => 0,
-                'games'            => []
-            ];
-        }
-    }
-}
-
-// Merge the processed games from the database into the "All" dataset
-foreach ($database as $cityKey => $cityProcessed) {
-    foreach ($cityProcessed['leagues'] as $league => $leagueData) {
-        if (empty($leagueData['games'])) continue;
-        
-        $allLeaguesData[$league]['games'] = array_merge($allLeaguesData[$league]['games'], $leagueData['games']);
-        
-        if ($leagueData['latest_timestamp'] > $allLeaguesData[$league]['latest_timestamp']) {
-            $allLeaguesData[$league]['latest_timestamp'] = $leagueData['latest_timestamp'];
-        }
-    }
-}
-
-// Re-sort the global leagues and their combined games
-uasort($allLeaguesData, function ($a, $b) {
-    return $b['latest_timestamp'] <=> $a['latest_timestamp'];
-});
-
-foreach ($allLeaguesData as &$data) {
-    usort($data['games'], function ($a, $b) {
-        return $b['timestamp'] <=> $a['timestamp'];
-    });
-}
-unset($data);
-
-// Attach it to the main database payload
-$database['all'] = [
-    'label'   => 'All Cities',
-    'is_all'  => true,
-    'leagues' => $allLeaguesData
-];
-
-
-// 5. Prepare data for the JS/HTML template
-$jsonDatabase = json_encode($database, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
-$timestamp    = date('Y-m-d H:i:s');
-
-// Build the dropdown options, defaulting to Chicago, and appending "All Cities" at the end
-$optionsHtml = '';
-foreach ($CITIES as $key => $city) {
-    $selected = ($key === 'chicago') ? ' selected' : '';
-    $optionsHtml .= '                <option value="' . htmlspecialchars($key) . '"' . $selected . '>' . htmlspecialchars($city['label']) . '</option>' . "\n";
-}
-$optionsHtml .= '                <option value="all">All Cities</option>' . "\n";
-
-// 6. Generate the raw code for index2.php
-$indexTemplate = <<<HTML
-<?php
-// AUTO-GENERATED BY cron.php at {$timestamp}
+// AUTO-GENERATED BY cron.php at 2026-07-01 15:12:18
 // Force browsers and proxies to discard the cache
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Cache-Control: post-check=0, pre-check=0", false);
@@ -386,7 +200,11 @@ header("Pragma: no-cache");
     <div class="selector-wrapper">
         <label for="city">City</label>
         <select id="city">
-{$optionsHtml}
+                <option value="chicago" selected>Chicago</option>
+                <option value="losangeles">Los Angeles</option>
+                <option value="newyork">New York</option>
+                <option value="all">All Cities</option>
+
         </select>
         <label class="ai-toggle" id="ai-toggle-label">
             <input type="checkbox" id="show-ai-reports">
@@ -397,11 +215,11 @@ header("Pragma: no-cache");
     <div id="results-container">
         </div>
     
-    <div class="last-updated">Scores last updated: {$timestamp}</div>
+    <div class="last-updated">Scores last updated: 2026-07-01 15:12:18</div>
 </main>
 
 <script>
-    const sportsData = {$jsonDatabase};
+    const sportsData = {"chicago":{"label":"Chicago","is_all":false,"leagues":{"MLB":{"latest_timestamp":1782923700,"games":[{"timestamp":1782923700,"game_id":"401815979","team_name":"White Sox","abbr":"chw","league_key":"mlb","label":"Baseball","outcome":"Lost","vsAt":"@","opponent":"Baltimore Orioles","team_score":"1","opp_score":"6","date_str":"Today","date_iso":"2026-07-01"},{"timestamp":1782864300,"game_id":"401815973","team_name":"Cubs","abbr":"chc","league_key":"mlb","label":"Baseball","outcome":"Won","vsAt":"vs","opponent":"San Diego Padres","team_score":"9","opp_score":"7","date_str":"Yesterday","date_iso":"2026-06-30"},{"timestamp":1782858900,"game_id":"401815964","team_name":"White Sox","abbr":"chw","league_key":"mlb","label":"Baseball","outcome":"Won","vsAt":"@","opponent":"Baltimore Orioles","team_score":"9","opp_score":"3","date_str":"Yesterday","date_iso":"2026-06-30"},{"timestamp":1782777900,"game_id":"401815959","team_name":"Cubs","abbr":"chc","league_key":"mlb","label":"Baseball","outcome":"Won","vsAt":"vs","opponent":"San Diego Padres","team_score":"3","opp_score":"2","date_str":"2 days ago","date_iso":"2026-06-29"}]},"NFL":{"latest_timestamp":0,"games":[]},"NBA":{"latest_timestamp":0,"games":[]},"NHL":{"latest_timestamp":0,"games":[]}}},"losangeles":{"label":"Los Angeles","is_all":false,"leagues":{"MLB":{"latest_timestamp":1782870000,"games":[{"timestamp":1782870000,"game_id":"401815977","team_name":"Dodgers","abbr":"lad","league_key":"mlb","label":"Baseball","outcome":"Won","vsAt":"@","opponent":"Athletics","team_score":"9","opp_score":"3","date_str":"Yesterday","date_iso":"2026-06-30"},{"timestamp":1782870000,"game_id":"401815976","team_name":"Angels","abbr":"laa","league_key":"mlb","label":"Baseball","outcome":"Lost","vsAt":"@","opponent":"Seattle Mariners","team_score":"3","opp_score":"8","date_str":"Yesterday","date_iso":"2026-06-30"},{"timestamp":1782783600,"game_id":"401815962","team_name":"Dodgers","abbr":"lad","league_key":"mlb","label":"Baseball","outcome":"Won","vsAt":"@","opponent":"Athletics","team_score":"9","opp_score":"4","date_str":"2 days ago","date_iso":"2026-06-29"},{"timestamp":1782783600,"game_id":"401815961","team_name":"Angels","abbr":"laa","league_key":"mlb","label":"Baseball","outcome":"Lost","vsAt":"@","opponent":"Seattle Mariners","team_score":"2","opp_score":"6","date_str":"2 days ago","date_iso":"2026-06-29"}]},"NFL":{"latest_timestamp":0,"games":[]},"NBA":{"latest_timestamp":0,"games":[]},"NHL":{"latest_timestamp":0,"games":[]}}},"newyork":{"label":"New York","is_all":false,"leagues":{"MLB":{"latest_timestamp":1782860820,"games":[{"timestamp":1782860820,"game_id":"401815966","team_name":"Mets","abbr":"nym","league_key":"mlb","label":"Baseball","outcome":"Won","vsAt":"@","opponent":"Toronto Blue Jays","team_score":"3","opp_score":"0","date_str":"Yesterday","date_iso":"2026-06-30"},{"timestamp":1782860700,"game_id":"401815965","team_name":"Yankees","abbr":"nyy","league_key":"mlb","label":"Baseball","outcome":"Lost","vsAt":"vs","opponent":"Detroit Tigers","team_score":"3","opp_score":"9","date_str":"Yesterday","date_iso":"2026-06-30"},{"timestamp":1782774420,"game_id":"401815953","team_name":"Mets","abbr":"nym","league_key":"mlb","label":"Baseball","outcome":"Lost","vsAt":"@","opponent":"Toronto Blue Jays","team_score":"1","opp_score":"2","date_str":"2 days ago","date_iso":"2026-06-29"},{"timestamp":1782774300,"game_id":"401815952","team_name":"Yankees","abbr":"nyy","league_key":"mlb","label":"Baseball","outcome":"Lost","vsAt":"vs","opponent":"Detroit Tigers","team_score":"3","opp_score":"7","date_str":"2 days ago","date_iso":"2026-06-29"}]},"NBA":{"latest_timestamp":1781397000,"games":[{"timestamp":1781397000,"game_id":"401859967","team_name":"Knicks","abbr":"ny","league_key":"nba","label":"Basketball","outcome":"Won","vsAt":"@","opponent":"San Antonio Spurs","team_score":"94","opp_score":"90","date_str":"Jun 13","date_iso":"2026-06-13"},{"timestamp":1781137800,"game_id":"401859966","team_name":"Knicks","abbr":"ny","league_key":"nba","label":"Basketball","outcome":"Won","vsAt":"vs","opponent":"San Antonio Spurs","team_score":"107","opp_score":"106","date_str":"Jun 10","date_iso":"2026-06-10"}]},"NFL":{"latest_timestamp":0,"games":[]},"NHL":{"latest_timestamp":0,"games":[]}}},"all":{"label":"All Cities","is_all":true,"leagues":{"MLB":{"latest_timestamp":1782923700,"games":[{"timestamp":1782923700,"game_id":"401815979","team_name":"White Sox","abbr":"chw","league_key":"mlb","label":"Baseball","outcome":"Lost","vsAt":"@","opponent":"Baltimore Orioles","team_score":"1","opp_score":"6","date_str":"Today","date_iso":"2026-07-01"},{"timestamp":1782870000,"game_id":"401815977","team_name":"Dodgers","abbr":"lad","league_key":"mlb","label":"Baseball","outcome":"Won","vsAt":"@","opponent":"Athletics","team_score":"9","opp_score":"3","date_str":"Yesterday","date_iso":"2026-06-30"},{"timestamp":1782870000,"game_id":"401815976","team_name":"Angels","abbr":"laa","league_key":"mlb","label":"Baseball","outcome":"Lost","vsAt":"@","opponent":"Seattle Mariners","team_score":"3","opp_score":"8","date_str":"Yesterday","date_iso":"2026-06-30"},{"timestamp":1782864300,"game_id":"401815973","team_name":"Cubs","abbr":"chc","league_key":"mlb","label":"Baseball","outcome":"Won","vsAt":"vs","opponent":"San Diego Padres","team_score":"9","opp_score":"7","date_str":"Yesterday","date_iso":"2026-06-30"},{"timestamp":1782860820,"game_id":"401815966","team_name":"Mets","abbr":"nym","league_key":"mlb","label":"Baseball","outcome":"Won","vsAt":"@","opponent":"Toronto Blue Jays","team_score":"3","opp_score":"0","date_str":"Yesterday","date_iso":"2026-06-30"},{"timestamp":1782860700,"game_id":"401815965","team_name":"Yankees","abbr":"nyy","league_key":"mlb","label":"Baseball","outcome":"Lost","vsAt":"vs","opponent":"Detroit Tigers","team_score":"3","opp_score":"9","date_str":"Yesterday","date_iso":"2026-06-30"},{"timestamp":1782858900,"game_id":"401815964","team_name":"White Sox","abbr":"chw","league_key":"mlb","label":"Baseball","outcome":"Won","vsAt":"@","opponent":"Baltimore Orioles","team_score":"9","opp_score":"3","date_str":"Yesterday","date_iso":"2026-06-30"},{"timestamp":1782783600,"game_id":"401815962","team_name":"Dodgers","abbr":"lad","league_key":"mlb","label":"Baseball","outcome":"Won","vsAt":"@","opponent":"Athletics","team_score":"9","opp_score":"4","date_str":"2 days ago","date_iso":"2026-06-29"},{"timestamp":1782783600,"game_id":"401815961","team_name":"Angels","abbr":"laa","league_key":"mlb","label":"Baseball","outcome":"Lost","vsAt":"@","opponent":"Seattle Mariners","team_score":"2","opp_score":"6","date_str":"2 days ago","date_iso":"2026-06-29"},{"timestamp":1782777900,"game_id":"401815959","team_name":"Cubs","abbr":"chc","league_key":"mlb","label":"Baseball","outcome":"Won","vsAt":"vs","opponent":"San Diego Padres","team_score":"3","opp_score":"2","date_str":"2 days ago","date_iso":"2026-06-29"},{"timestamp":1782774420,"game_id":"401815953","team_name":"Mets","abbr":"nym","league_key":"mlb","label":"Baseball","outcome":"Lost","vsAt":"@","opponent":"Toronto Blue Jays","team_score":"1","opp_score":"2","date_str":"2 days ago","date_iso":"2026-06-29"},{"timestamp":1782774300,"game_id":"401815952","team_name":"Yankees","abbr":"nyy","league_key":"mlb","label":"Baseball","outcome":"Lost","vsAt":"vs","opponent":"Detroit Tigers","team_score":"3","opp_score":"7","date_str":"2 days ago","date_iso":"2026-06-29"}]},"NBA":{"latest_timestamp":1781397000,"games":[{"timestamp":1781397000,"game_id":"401859967","team_name":"Knicks","abbr":"ny","league_key":"nba","label":"Basketball","outcome":"Won","vsAt":"@","opponent":"San Antonio Spurs","team_score":"94","opp_score":"90","date_str":"Jun 13","date_iso":"2026-06-13"},{"timestamp":1781137800,"game_id":"401859966","team_name":"Knicks","abbr":"ny","league_key":"nba","label":"Basketball","outcome":"Won","vsAt":"vs","opponent":"San Antonio Spurs","team_score":"107","opp_score":"106","date_str":"Jun 10","date_iso":"2026-06-10"}]},"NFL":{"latest_timestamp":0,"games":[]},"NHL":{"latest_timestamp":0,"games":[]}}}};
     const SUMMARY_PROXY = 'summary.php?city=';
     const citySelect = document.getElementById('city');
     const resultsContainer = document.getElementById('results-container');
@@ -679,15 +497,3 @@ header("Pragma: no-cache");
 
 </body>
 </html>
-HTML;
-
-// 7. Write to index2.php
-$targetFile = __DIR__ . '/index2.php';
-file_put_contents($targetFile, $indexTemplate);
-
-// 8. Bust the PHP OPcache for the newly generated file
-if (function_exists('opcache_invalidate')) {
-    opcache_invalidate($targetFile, true);
-}
-
-echo "Successfully generated index2.php at " . date('Y-m-d H:i:s') . "\n";

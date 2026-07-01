@@ -156,3 +156,36 @@ function extract_score($score)
     }
     return $score;
 }
+
+/**
+ * Fetch a city's AI summary JSON from Backblaze B2 (server-side, no CORS).
+ *
+ * @return array<string,mixed>|null
+ */
+function fetch_city_summary(string $citySlug, string $baseUrl): ?array
+{
+    $url = rtrim($baseUrl, '/') . '/' . rawurlencode($citySlug) . '.json';
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 15,
+        CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; LocalSportsSite/1.0)',
+        CURLOPT_HTTPHEADER     => ['Accept: application/json'],
+    ]);
+
+    $body     = curl_exec($ch);
+    $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    if (PHP_VERSION_ID < 80500) {
+        curl_close($ch);
+    }
+
+    if (!$body || $httpCode !== 200) {
+        return null;
+    }
+
+    $data = json_decode($body, true);
+    return is_array($data) ? $data : null;
+}

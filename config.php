@@ -11,6 +11,9 @@
  *   http://site.api.espn.com/apis/site/v2/sports/{sport}/{league}/teams/{abbr}/schedule
  */
 
+// Base URL for daily AI summary JSON (one file per city slug, e.g. chicago.json)
+$SUMMARY_BASE_URL = 'https://f004.backblazeb2.com/file/sports-summaries/summaries/';
+
 $SPORT_LABELS = [
     'nfl' => ['sport' => 'football',   'label' => 'Football'],
     'nba' => ['sport' => 'basketball', 'label' => 'Basketball'],
