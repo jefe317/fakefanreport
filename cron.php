@@ -2,7 +2,6 @@
 date_default_timezone_set('America/Chicago');
 declare(strict_types=1);
 
-
 // Ensure this script can run as long as it needs to and isn't memory capped
 set_time_limit(0);
 ini_set('memory_limit', '256M');
@@ -39,7 +38,7 @@ foreach ($CITIES as $cityKey => $cityData) {
         if (!isset($leaguesData[$leagueKey])) {
             $leaguesData[$leagueKey] = [
                 'latest_timestamp' => 0,
-                'games'            => [],
+                'games'            => []
             ];
         }
     }
@@ -386,14 +385,16 @@ header("Pragma: no-cache");
 </main>
 
 <script>
+    // Load precomputed PHP data into JS
     const sportsData = {$jsonDatabase};
     const SUMMARY_BASE_URL = {$summaryBaseUrlJs};
     const citySelect = document.getElementById('city');
     const resultsContainer = document.getElementById('results-container');
     const summaryCache = {};
 
+    // Escape HTML function to prevent XSS
     function escapeHTML(str) {
-        return String(str).replace(/[&<>'"]/g,
+        return String(str).replace(/[&<>'"]/g, 
             tag => ({
                 '&': '&amp;',
                 '<': '&lt;',
@@ -637,7 +638,7 @@ header("Pragma: no-cache");
 
     async function renderResults() {
         const cityId = citySelect.value;
-        resultsContainer.innerHTML = '';
+        resultsContainer.innerHTML = ''; 
 
         if (!cityId || !sportsData[cityId]) return;
 
@@ -722,7 +723,10 @@ header("Pragma: no-cache");
         resultsContainer.innerHTML = html;
     }
 
+    // Listen for dropdown changes
     citySelect.addEventListener('change', renderResults);
+
+    // Initial render on page load
     renderResults();
 </script>
 
