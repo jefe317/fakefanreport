@@ -35,6 +35,27 @@ AI reports are loaded via `summary.php`, which fetches from Backblaze on the ser
 
 - `config.php` — cities, teams, `$SUMMARY_BASE_URL` for AI JSON files
 
-## Branch
+## Setup
 
-`add-llm-reports` — AI report accordions on `index2.php`.
+This repo is a fork of [jefe317/fakefanreport](https://github.com/jefe317/fakefanreport) with AI report integration.
+
+| Remote | URL |
+|--------|-----|
+| `origin` | `git@github.com:jantznick/fakefanreport.git` (your fork) |
+| `upstream` | `https://github.com/jefe317/fakefanreport.git` (original) |
+
+### First-time fork push
+
+If the GitHub fork does not exist yet, create it at [github.com/jefe317/fakefanreport/fork](https://github.com/jefe317/fakefanreport/fork), then:
+
+```bash
+git push -u origin main
+```
+
+To pull upstream changes later:
+
+```bash
+git fetch upstream
+git merge upstream/main
+        # or rebase, as you prefer
+```
