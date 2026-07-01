@@ -1,6 +1,6 @@
 <?php
-date_default_timezone_set('America/Chicago');
 declare(strict_types=1);
+date_default_timezone_set('America/Chicago');
 
 // Ensure this script can run as long as it needs to and isn't memory capped
 set_time_limit(0);
@@ -194,7 +194,7 @@ header("Pragma: no-cache");
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
-<title>Local Sports Recap</title>
+<title>Fake Sports Fan Report</title>
 <style>
     :root {
         --bg-color: #f8fafc;
@@ -209,43 +209,56 @@ header("Pragma: no-cache");
         font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         background-color: var(--bg-color);
         color: var(--text-primary);
-        line-height: 1.5;
+        line-height: 1.3;
         margin: 0;
-        padding: 2rem 1rem;
+        padding: 0.75rem 0.75rem 1.5rem;
+        font-size: 15px;
     }
     .container { max-width: 650px; margin: 0 auto; }
-    h1 { font-size: 2.25rem; font-weight: 800; letter-spacing: -0.025em; margin: 0 0 0.5rem 0; }
-    .lead { color: var(--text-secondary); font-size: 1.125rem; margin: 0 0 2rem 0; }
-    
+    h1 { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.025em; margin: 0 0 0.5rem 0; }
+
     .selector-wrapper {
-        background: var(--card-bg); padding: 1.5rem; border-radius: var(--radius);
-        border: 1px solid var(--border); box-shadow: var(--shadow); 
-        margin-bottom: 2.5rem; display: flex; flex-direction: column; gap: 0.5rem;
+        background: var(--card-bg); padding: 0.5rem 0.625rem; border-radius: var(--radius);
+        border: 1px solid var(--border); box-shadow: var(--shadow);
+        margin-bottom: 0.75rem; display: flex; flex-direction: row; align-items: center; gap: 0.5rem;
     }
-    label { font-weight: 600; font-size: 0.875rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
+    label { font-weight: 600; font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
     select {
-        padding: 0.625rem; border-radius: 6px; border: 1px solid var(--border);
-        background-color: var(--card-bg); font-size: 1rem; color: var(--text-primary);
+        padding: 0.3rem 0.4rem; border-radius: 6px; border: 1px solid var(--border);
+        background-color: var(--card-bg); font-size: 0.9rem; color: var(--text-primary);
         width: 100%; cursor: pointer;
     }
-    
+
     h2 { font-size: 1.75rem; border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; margin: 2rem 0 1rem 0; }
-    h3 { font-size: 1.125rem; color: var(--text-secondary); margin: 1.5rem 0 0.75rem 0; text-transform: uppercase; letter-spacing: 0.05em; }
-    .game-card {
-        background: var(--card-bg); padding: 1rem 1.25rem; border-radius: var(--radius);
-        border: 1px solid var(--border); box-shadow: var(--shadow); margin-bottom: 0.75rem;
+    h3 {
+        font-size: 0.7rem; color: var(--text-secondary); margin: 0.6rem 0 0.3rem 0;
+        text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border);
+        padding-bottom: 0.15rem;
     }
-    .game-card strong { color: var(--text-primary); }
+    h3:first-child { margin-top: 0; }
+    .game-card {
+        background: var(--card-bg); padding: 0.35rem 0.6rem; border-radius: 6px;
+        border: 1px solid var(--border); margin-bottom: 0.3rem;
+        display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 0.4rem;
+        font-size: 0.85rem;
+    }
+    .game-card strong { color: var(--text-primary); font-weight: 600; }
     .game-details { color: var(--text-secondary); }
-    .no-results { color: var(--text-secondary); font-style: italic; padding: 0.5rem 0; }
-    .last-updated { font-size: 0.8rem; color: var(--text-secondary); text-align: center; margin-top: 3rem; }
+    .no-results { color: var(--text-secondary); font-style: italic; padding: 0.15rem 0; margin: 0 0 0.3rem 0; font-size: 0.85rem; }
+    .last-updated { font-size: 0.7rem; color: var(--text-secondary); text-align: center; margin-top: 1rem; }
+
+    @media (max-width: 480px) {
+        body { padding: 0.5rem 0.5rem 1rem; font-size: 14px; }
+        h1 { font-size: 1.1rem; }
+        .game-card { font-size: 0.8rem; padding: 0.3rem 0.5rem; }
+        h3 { font-size: 0.65rem; }
+    }
 </style>
 </head>
 <body>
 
 <main class="container">
-    <h1>Local Sports Recap</h1>
-    <p class="lead">Pick your city to see how your teams did in their last two games.</p>
+    <h1>Fake Sports Fan Report</h1>
 
     <div class="selector-wrapper">
         <label for="city">City</label>
@@ -288,11 +301,6 @@ header("Pragma: no-cache");
 
         const cityData = sportsData[cityId];
         let html = '';
-
-        // Omit the <h2> city name if the 'All Cities' option is selected
-        if (!cityData.is_all) {
-            html += `<h2>\${escapeHTML(cityData.label)}</h2>`;
-        }
 
         for (const [league, data] of Object.entries(cityData.leagues)) {
             html += `<h3>\${escapeHTML(league)}</h3>`;
