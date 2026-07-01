@@ -1,7 +1,7 @@
 <?php
+date_default_timezone_set('America/Chicago');
 declare(strict_types=1);
 
-date_default_timezone_set('America/Chicago');
 
 // Ensure this script can run as long as it needs to and isn't memory capped
 set_time_limit(0);
@@ -39,7 +39,7 @@ foreach ($CITIES as $cityKey => $cityData) {
         if (!isset($leaguesData[$leagueKey])) {
             $leaguesData[$leagueKey] = [
                 'latest_timestamp' => 0,
-                'games'            => []
+                'games'            => [],
             ];
         }
     }
@@ -182,6 +182,8 @@ foreach ($CITIES as $key => $city) {
 }
 $optionsHtml .= '                <option value="all">All Cities</option>' . "\n";
 
+$summaryBaseUrlJs = json_encode(rtrim($SUMMARY_BASE_URL, '/') . '/');
+
 // 6. Generate the raw code for index2.php
 $indexTemplate = <<<HTML
 <?php
@@ -237,12 +239,11 @@ header("Pragma: no-cache");
     h2 { font-size: 1.75rem; border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; margin: 2rem 0 1rem 0; }
     h3 { font-size: 1.125rem; color: var(--text-secondary); margin: 0; text-transform: uppercase; letter-spacing: 0.05em; }
     .section-head {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        grid-template-rows: auto auto;
-        align-items: center;
-        column-gap: 1rem;
-        row-gap: 0.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.5rem 1rem;
         margin: 1.5rem 0 0.75rem 0;
     }
     .section-head--team {
@@ -258,26 +259,29 @@ header("Pragma: no-cache");
     }
     .section-head > h3,
     .section-head > h4 {
-        grid-column: 1;
-        grid-row: 1;
+        flex: 0 1 auto;
+        margin: 0;
+        order: 1;
     }
     .section-head > .ai-accordion--head {
-        grid-column: 2;
-        grid-row: 1;
-        justify-self: end;
+        flex: 0 0 auto;
+        margin-left: auto;
+        order: 1;
     }
     .section-head > .ai-accordion--head[open] {
-        display: contents;
+        flex: 1 0 100%;
+        order: 2;
+        width: 100%;
+        margin-left: 0;
     }
     .section-head > .ai-accordion--head[open] > summary {
-        grid-column: 2;
-        grid-row: 1;
-        justify-self: end;
+        display: block;
+        text-align: right;
+        margin-bottom: 0.25rem;
     }
     .section-head > .ai-accordion--head[open] > .ai-accordion-body,
     .section-head > .ai-accordion--head[open] > .ai-sources {
-        grid-column: 1 / -1;
-        grid-row: 2;
+        width: 100%;
     }
     .team-group {
         margin-bottom: 0.25rem;
@@ -290,21 +294,6 @@ header("Pragma: no-cache");
     .game-details { color: var(--text-secondary); }
     .no-results { color: var(--text-secondary); font-style: italic; padding: 0.5rem 0; }
     .last-updated { font-size: 0.8rem; color: var(--text-secondary); text-align: center; margin-top: 3rem; }
-
-    .ai-toggle {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-top: 1rem;
-        font-size: 0.95rem;
-        font-weight: 500;
-        color: var(--text-primary);
-        text-transform: none;
-        letter-spacing: normal;
-        cursor: pointer;
-    }
-    .ai-toggle input { width: 1rem; height: 1rem; cursor: pointer; }
-    .ai-toggle.is-disabled { opacity: 0.5; cursor: not-allowed; }
 
     .report-date {
         color: var(--text-secondary);
@@ -388,10 +377,6 @@ header("Pragma: no-cache");
         <select id="city">
 {$optionsHtml}
         </select>
-        <label class="ai-toggle" id="ai-toggle-label">
-            <input type="checkbox" id="show-ai-reports">
-            Show AI reports
-        </label>
     </div>
 
     <div id="results-container">
@@ -402,11 +387,9 @@ header("Pragma: no-cache");
 
 <script>
     const sportsData = {$jsonDatabase};
-    const SUMMARY_PROXY = 'summary.php?city=';
+    const SUMMARY_BASE_URL = {$summaryBaseUrlJs};
     const citySelect = document.getElementById('city');
     const resultsContainer = document.getElementById('results-container');
-    const showAiCheckbox = document.getElementById('show-ai-reports');
-    const aiToggleLabel = document.getElementById('ai-toggle-label');
     const summaryCache = {};
 
     function escapeHTML(str) {
@@ -435,7 +418,7 @@ header("Pragma: no-cache");
             return summaryCache[citySlug];
         }
         try {
-            const response = await fetch(SUMMARY_PROXY + encodeURIComponent(citySlug));
+            const response = await fetch(SUMMARY_BASE_URL + encodeURIComponent(citySlug) + '.json');
             if (!response.ok) throw new Error('fetch failed');
             summaryCache[citySlug] = await response.json();
         } catch (err) {
@@ -563,22 +546,103 @@ header("Pragma: no-cache");
         return groups;
     }
 
-    function updateAiToggleState() {
-        const isAll = citySelect.value === 'all';
-        showAiCheckbox.disabled = isAll;
-        aiToggleLabel.classList.toggle('is-disabled', isAll);
-        if (isAll) showAiCheckbox.checked = false;
+    function espnGamesForTeam(espnLeagueData, abbr) {
+        return (espnLeagueData?.games || []).filter(game => game.abbr === abbr);
+    }
+
+    function teamHasAiContent(teamBlock) {
+        if (!teamBlock || teamBlock.error) return false;
+        if (teamBlock.newsSummary) return true;
+        return (teamBlock.recentGames || []).some(entry => entry.summary && !entry.error);
+    }
+
+    function formatAiGameLine(gameReport) {
+        if (gameReport.matchup) return gameReport.matchup;
+        const parts = [];
+        if (gameReport.opponent) parts.push('vs ' + gameReport.opponent);
+        if (gameReport.result) parts.push(gameReport.result);
+        if (gameReport.date) parts.push(gameReport.date);
+        return parts.join(' — ') || 'Recent game';
+    }
+
+    function aiGameKey(gameReport) {
+        return String(gameReport.gameId || (gameReport.date + '|' + gameReport.opponent + '|' + gameReport.result));
+    }
+
+    function renderAiGameCard(gameReport) {
+        let html = '<div class="game-card">';
+        html += '<strong>' + escapeHTML(formatAiGameLine(gameReport)) + '</strong>';
+        html += '<div class="ai-section">';
+        html += buildReportAccordion('Game recap', gameReport.summary);
+        html += '</div></div>';
+        return html;
+    }
+
+    function renderTeamSection(teamName, teamBlock, espnGames) {
+        let html = '';
+
+        let teamToggle = '';
+        if (teamBlock && teamBlock.newsSummary) {
+            teamToggle = buildReportAccordion(
+                'Team roundup',
+                teamBlock.newsSummary,
+                teamBlock.sourceArticles,
+                teamBlock.sourceRedditPosts,
+                'ai-accordion--head'
+            );
+        }
+
+        html += '<div class="team-group">';
+        html += '<div class="section-head section-head--team">';
+        html += '<h4>' + escapeHTML(teamName) + '</h4>';
+        html += teamToggle;
+        html += '</div>';
+
+        const usedGameIds = new Set();
+
+        espnGames.forEach(game => {
+            const title = game.team_name + ' ' + game.outcome + ' ' + game.label;
+            const details = '— ' + game.team_score + '-' + game.opp_score + ' '
+                + game.vsAt + ' ' + game.opponent + ' (' + game.date_str + ')';
+
+            html += '<div class="game-card">';
+            html += '<strong>' + escapeHTML(title) + '</strong>';
+            html += '<span class="game-details">' + escapeHTML(details) + '</span>';
+
+            if (teamBlock) {
+                const gameReport = findGameReport(teamBlock, game, usedGameIds);
+                if (gameReport && gameReport.summary) {
+                    html += '<div class="ai-section">';
+                    html += buildReportAccordion('Game recap', gameReport.summary);
+                    html += '</div>';
+                }
+            }
+
+            html += '</div>';
+        });
+
+        if (teamBlock) {
+            (teamBlock.recentGames || []).forEach(gameReport => {
+                if (!gameReport.summary || gameReport.error) return;
+                const key = aiGameKey(gameReport);
+                if (usedGameIds.has(key)) return;
+                usedGameIds.add(key);
+                html += renderAiGameCard(gameReport);
+            });
+        }
+
+        html += '</div>';
+        return html;
     }
 
     async function renderResults() {
         const cityId = citySelect.value;
         resultsContainer.innerHTML = '';
-        updateAiToggleState();
 
         if (!cityId || !sportsData[cityId]) return;
 
         const cityData = sportsData[cityId];
-        const showAi = showAiCheckbox.checked && cityId !== 'all';
+        const showAi = cityId !== 'all';
         let summary = null;
 
         if (showAi) {
@@ -595,11 +659,13 @@ header("Pragma: no-cache");
             html += '<p class="report-date">AI reports for ' + escapeHTML(formatReportDate(summary.date)) + '</p>';
         }
 
-        for (const [league, data] of Object.entries(cityData.leagues)) {
-            let leagueToggle = '';
-            if (showAi && summary) {
-                const leagueBlock = getLeagueBlock(summary, league);
-                if (leagueBlock && leagueBlock.newsSummary) {
+        if (showAi && summary && summary.leagues) {
+            for (const [leagueKey, leagueBlock] of Object.entries(summary.leagues)) {
+                const league = leagueKey.toUpperCase();
+                const espnLeague = cityData.leagues[league] || { games: [] };
+
+                let leagueToggle = '';
+                if (leagueBlock.newsSummary) {
                     leagueToggle = buildReportAccordion(
                         'League roundup',
                         leagueBlock.newsSummary,
@@ -608,72 +674,55 @@ header("Pragma: no-cache");
                         'ai-accordion--head'
                     );
                 }
-            }
 
-            html += '<div class="section-head">';
-            html += '<h3>' + escapeHTML(league) + '</h3>';
-            html += leagueToggle;
-            html += '</div>';
-
-            if (data.games.length === 0) {
-                html += '<p class="no-results">No recent results available</p>';
-                continue;
-            }
-
-            groupGamesByTeam(data.games).forEach(teamGroup => {
-                let teamToggle = '';
-                if (showAi && summary) {
-                    const teamBlock = getTeamBlock(summary, league, teamGroup.abbr);
-                    if (teamBlock && !teamBlock.error && teamBlock.newsSummary) {
-                        teamToggle = buildReportAccordion(
-                            'Team roundup',
-                            teamBlock.newsSummary,
-                            teamBlock.sourceArticles,
-                            teamBlock.sourceRedditPosts,
-                            'ai-accordion--head'
-                        );
-                    }
+                const teams = leagueBlock.teams || {};
+                const hasTeams = Object.values(teams).some(teamHasAiContent);
+                const hasScores = espnLeague.games.length > 0;
+                if (!leagueToggle && !hasTeams && !hasScores) {
+                    continue;
                 }
 
-                html += '<div class="team-group">';
-                html += '<div class="section-head section-head--team">';
-                html += '<h4>' + escapeHTML(teamGroup.team_name) + '</h4>';
-                html += teamToggle;
+                html += '<div class="section-head">';
+                html += '<h3>' + escapeHTML(league) + '</h3>';
+                html += leagueToggle;
                 html += '</div>';
 
-                const usedGameIds = new Set();
-
-                teamGroup.games.forEach(game => {
-                    const title = game.team_name + ' ' + game.outcome + ' ' + game.label;
-                    const details = '— ' + game.team_score + '-' + game.opp_score + ' '
-                        + game.vsAt + ' ' + game.opponent + ' (' + game.date_str + ')';
-
-                    html += '<div class="game-card">';
-                    html += '<strong>' + escapeHTML(title) + '</strong>';
-                    html += '<span class="game-details">' + escapeHTML(details) + '</span>';
-
-                    if (showAi && summary) {
-                        const teamBlock = getTeamBlock(summary, league, game.abbr);
-                        const gameReport = findGameReport(teamBlock, game, usedGameIds);
-                        if (gameReport && gameReport.summary) {
-                            html += '<div class="ai-section">';
-                            html += buildReportAccordion('Game recap', gameReport.summary);
-                            html += '</div>';
-                        }
+                let renderedTeam = false;
+                for (const [abbr, teamBlock] of Object.entries(teams)) {
+                    const espnGames = espnGamesForTeam(espnLeague, abbr);
+                    if (!teamHasAiContent(teamBlock) && espnGames.length === 0) {
+                        continue;
                     }
+                    renderedTeam = true;
+                    const teamName = teamBlock.displayName || teamBlock.name || abbr;
+                    html += renderTeamSection(teamName, teamBlock, espnGames);
+                }
 
-                    html += '</div>';
-                });
-
+                if (!renderedTeam && !hasScores) {
+                    html += '<p class="no-results">No recent results available</p>';
+                }
+            }
+        } else {
+            for (const [league, data] of Object.entries(cityData.leagues)) {
+                html += '<div class="section-head">';
+                html += '<h3>' + escapeHTML(league) + '</h3>';
                 html += '</div>';
-            });
+
+                if (data.games.length === 0) {
+                    html += '<p class="no-results">No recent results available</p>';
+                    continue;
+                }
+
+                groupGamesByTeam(data.games).forEach(group => {
+                    html += renderTeamSection(group.team_name, null, group.games);
+                });
+            }
         }
 
         resultsContainer.innerHTML = html;
     }
 
     citySelect.addEventListener('change', renderResults);
-    showAiCheckbox.addEventListener('change', renderResults);
     renderResults();
 </script>
 
