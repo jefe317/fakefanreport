@@ -1,328 +1,168 @@
 <?php
-declare(strict_types=1);
-
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/api.php';
-
-$selectedCity = isset($_GET['city']) ? trim((string) $_GET['city']) : '';
-$cityData     = $CITIES[$selectedCity] ?? null;
-
-// Build one schedule URL per team in the selected city, then fetch all
-// of them in parallel so the page doesn't wait on each team one by one.
-$scheduleResponses = [];
-if ($cityData) {
-    $urls = [];
-    foreach ($cityData['teams'] as $i => $team) {
-        $sportInfo = $SPORT_LABELS[$team['league']] ?? null;
-        if (!$sportInfo) {
-            continue;
-        }
-        $urls[$i] = schedule_url($sportInfo['sport'], $team['league'], $team['abbr']);
-    }
-    $scheduleResponses = fetch_json_multi($urls);
-}
-?><!DOCTYPE html>
+// AUTO-GENERATED at Thursday, July 2, 2026 7:39:47 AM CDT
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+?>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Local Sports Recap</title>
+<title>Fake Sports Fan Report</title>
 <style>
     :root {
         --bg-color: #f8fafc;
         --card-bg: #ffffff;
         --text-primary: #0f172a;
         --text-secondary: #475569;
-        --primary: #1e40af;
-        --primary-hover: #1e3a8a;
         --border: #e2e8f0;
         --radius: 8px;
         --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        --upcoming-bg: #f0f9ff;
     }
-
     body {
         font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         background-color: var(--bg-color);
         color: var(--text-primary);
-        line-height: 1.5;
+        line-height: 1.3;
         margin: 0;
-        padding: 2rem 1rem;
+        padding: 0.75rem 0.75rem 1.5rem;
+        font-size: 15px;
     }
+    .container { max-width: 650px; margin: 0 auto; }
+    h1 { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.025em; margin: 0 0 0.5rem 0; }
 
-    .container {
-        max-width: 650px;
-        margin: 0 auto;
+    .selector-wrapper {
+        background: var(--card-bg); padding: 0.5rem 0.625rem; border-radius: var(--radius);
+        border: 1px solid var(--border); box-shadow: var(--shadow);
+        margin-bottom: 0.75rem; display: flex; flex-direction: row; align-items: center; gap: 0.5rem;
     }
-
-    h1 {
-        font-size: 2.25rem;
-        font-weight: 800;
-        letter-spacing: -0.025em;
-        margin: 0 0 0.5rem 0;
-    }
-
-    .lead {
-        color: var(--text-secondary);
-        font-size: 1.125rem;
-        margin: 0 0 2rem 0;
-    }
-
-    form {
-        background: var(--card-bg);
-        padding: 1.5rem;
-        border-radius: var(--radius);
-        border: 1px solid var(--border);
-        box-shadow: var(--shadow);
-        display: flex;
-        gap: 1rem;
-        align-items: flex-end;
-        flex-wrap: wrap;
-        margin-bottom: 2.5rem;
-    }
-
-    .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        flex-grow: 1;
-        min-width: 200px;
-    }
-
-    label {
-        font-weight: 600;
-        font-size: 0.875rem;
-        color: var(--text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
+    label { font-weight: 600; font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
     select {
-        padding: 0.625rem;
-        border-radius: 6px;
-        border: 1px solid var(--border);
-        background-color: var(--card-bg);
-        font-size: 1rem;
-        color: var(--text-primary);
-        width: 100%;
-        cursor: pointer;
-    }
-
-    button {
-        background-color: var(--primary);
-        color: #ffffff;
-        padding: 0.625rem 1.25rem;
-        border-radius: 6px;
-        border: none;
-        font-size: 1rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background-color 0.2s;
-        height: 42px;
-    }
-
-    button:hover {
-        background-color: var(--primary-hover);
-    }
-
-    .alert {
-        background-color: #fee2e2;
-        color: #991b1b;
-        padding: 1rem;
-        border-radius: var(--radius);
-        margin-bottom: 1.5rem;
-        border: 1px solid #fca5a5;
+        padding: 0.3rem 0.4rem; border-radius: 6px; border: 1px solid var(--border);
+        background-color: var(--card-bg); font-size: 0.9rem; color: var(--text-primary);
+        width: 100%; cursor: pointer;
     }
 
     h2 {
-        font-size: 1.75rem;
-        border-bottom: 2px solid var(--border);
-        padding-bottom: 0.5rem;
-        margin: 2rem 0 1rem 0;
+        font-size: 0.7rem; color: var(--text-secondary); margin: 0.6rem 0 0.3rem 0;
+        text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border);
+        padding-bottom: 0.15rem;
     }
-
-    h3 {
-        font-size: 1.125rem;
-        color: var(--text-secondary);
-        margin: 1.5rem 0 0.75rem 0;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
+    h2:first-child { margin-top: 0; }
     .game-card {
-        background: var(--card-bg);
-        padding: 1rem 1.25rem;
-        border-radius: var(--radius);
-        border: 1px solid var(--border);
-        box-shadow: var(--shadow);
-        margin-bottom: 0.75rem;
+        background: var(--card-bg); padding: 0.35rem 0.6rem; border-radius: 6px;
+        border: 1px solid var(--border); margin-bottom: 0.3rem;
+        display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 0.4rem;
+        font-size: 0.85rem;
     }
-
-    .game-card strong {
-        color: var(--text-primary);
-    }
-
-    .game-details {
-        color: var(--text-secondary);
-    }
-
-    .no-results {
-        color: var(--text-secondary);
-        font-style: italic;
-        padding: 0.5rem 0;
-    }
+    .game-card.upcoming { background: var(--upcoming-bg); border-color: #bae6fd; }
+    .game-card strong { color: var(--text-primary); font-weight: 600; }
+    .game-details { color: var(--text-secondary); }
+    .no-results { color: var(--text-secondary); font-style: italic; padding: 0.15rem 0; margin: 0 0 0.3rem 0; font-size: 0.85rem; }
+    
+    .last-updated { font-size: 0.7rem; color: var(--text-secondary); text-align: center; margin-top: 1rem; }
 
     @media (max-width: 480px) {
-        form {
-            flex-direction: column;
-            align-items: stretch;
-        }
-        button {
-            width: 100%;
-        }
+        body { padding: 0.5rem 0.5rem 1rem; font-size: 14px; }
+        h1 { font-size: 1.1rem; }
+        .game-card { font-size: 0.8rem; padding: 0.3rem 0.5rem; }
+        h3 { font-size: 0.65rem; }
     }
 </style>
 </head>
 <body>
 
 <main class="container">
-    <h1>Local Sports Recap</h1>
-    <p class="lead">Pick your city to see how your teams did in their last two games.</p>
+    <h1>Fake Sports Fan Report</h1>
 
-    <form method="get" action="index.php">
-        <div class="form-group">
-            <label for="city">City</label>
-            <select name="city" id="city">
-                <option value="">-- Select a city --</option>
-                <?php foreach ($CITIES as $key => $city): ?>
-                    <option value="<?= htmlspecialchars($key) ?>"<?= $key === $selectedCity ? ' selected' : '' ?>>
-                        <?= htmlspecialchars($city['label']) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <button type="submit">Show Recent Results</button>
-    </form>
+    <div class="selector-wrapper">
+        <label for="city">City</label>
+        <select id="city">
+                <option value="chicago" selected>Chicago</option>
+                <option value="losangeles">Los Angeles</option>
+                <option value="newyork">New York</option>
+                <option value="all">All Cities</option>
 
-    <?php if ($selectedCity !== '' && !$cityData): ?>
-        <div class="alert">
-            <p style="margin:0;">Sorry, that city isn't set up yet.</p>
-        </div>
-    <?php endif; ?>
+        </select>
+    </div>
 
-    <?php if ($cityData): ?>
-        <h2><?= htmlspecialchars($cityData['label']) ?></h2>
-        <?php
-        $leaguesData = [];
-        $oneMonthAgo = strtotime('-1 month');
+    <div id="results-container"></div>
+    
+    <div class="last-updated">Scores last updated: Thursday, July 2, 2026 7:39:47 AM CDT</div>
 
-        // Initialize all unique leagues present for this city's setup
-        foreach ($cityData['teams'] as $team) {
-            $leagueKey = strtoupper($team['league']);
-            if (!isset($leaguesData[$leagueKey])) {
-                $leaguesData[$leagueKey] = [
-                    'latest_timestamp' => 0,
-                    'games'            => []
-                ];
-            }
-        }
-
-        // Process and filter the raw responses
-        foreach ($cityData['teams'] as $i => $team) {
-            $leagueKey = strtoupper($team['league']);
-            $sportInfo = $SPORT_LABELS[$team['league']] ?? null;
-            if (!$sportInfo) {
-                continue;
-            }
-
-            $games = last_completed_games($scheduleResponses[$i] ?? null, 2);
-
-            foreach ($games as $event) {
-                $gameTimestamp = isset($event['date']) ? strtotime($event['date']) : 0;
-
-                // Ignore games older than 1 month
-                if ($gameTimestamp < $oneMonthAgo) {
-                    continue;
-                }
-
-                $result = summarize_game($event, $team['abbr']);
-                if (!$result) {
-                    continue;
-                }
-
-                // Generate relative dates
-                $gameDateStr   = date('Y-m-d', $gameTimestamp);
-                $todayStr      = date('Y-m-d');
-                $yesterdayStr  = date('Y-m-d', strtotime('yesterday'));
-                $twoDaysAgoStr = date('Y-m-d', strtotime('-2 days'));
-
-                if ($gameDateStr === $todayStr) {
-                    $relativeDate = 'Today';
-                } elseif ($gameDateStr === $yesterdayStr) {
-                    $relativeDate = 'Yesterday';
-                } elseif ($gameDateStr === $twoDaysAgoStr) {
-                    $relativeDate = '2 days ago';
-                } else {
-                    $relativeDate = date('M j', $gameTimestamp);
-                }
-
-                $outcome = $result['won'] ? 'Won' : 'Lost';
-                $vsAt    = $result['is_home'] ? 'vs' : '@';
-
-                // Store game data details
-                $leaguesData[$leagueKey]['games'][] = [
-                    'timestamp'  => $gameTimestamp,
-                    'team_name'  => $team['name'],
-                    'label'      => $sportInfo['label'],
-                    'outcome'    => $outcome,
-                    'vsAt'       => $vsAt,
-                    'opponent'   => $result['opponent'],
-                    'team_score' => $result['team_score'],
-                    'opp_score'  => $result['opp_score'],
-                    'date_str'   => $relativeDate
-                ];
-
-                // Track the overall most recent game timestamp for this specific league
-                if ($gameTimestamp > $leaguesData[$leagueKey]['latest_timestamp']) {
-                    $leaguesData[$leagueKey]['latest_timestamp'] = $gameTimestamp;
-                }
-            }
-        }
-
-        // Sort leagues globally by their freshest game timestamp descending
-        // Leagues with a timestamp of 0 (no recent games) go to the bottom
-        uasort($leaguesData, function ($a, $b) {
-            return $b['latest_timestamp'] <=> $a['latest_timestamp'];
-        });
-
-        // Sort games inside each individual league by timestamp descending
-        foreach ($leaguesData as $leagueKey => &$data) {
-            usort($data['games'], function ($a, $b) {
-                return $b['timestamp'] <=> $a['timestamp'];
-            });
-        }
-        unset($data);
-
-        // Output structural results
-        foreach ($leaguesData as $league => $data) {
-            echo "<h3>" . htmlspecialchars($league) . "</h3>\n";
-
-            if (empty($data['games'])) {
-                echo "<p class=\"no-results\">No recent results available</p>\n";
-                continue;
-            }
-
-            foreach ($data['games'] as $game) {
-                echo "<div class=\"game-card\">";
-                echo "<strong>" . htmlspecialchars("{$game['team_name']} {$game['outcome']} {$game['label']}") . "</strong>";
-                echo "<span class=\"game-details\">" . htmlspecialchars(
-                    " — {$game['team_score']}-{$game['opp_score']} {$game['vsAt']} {$game['opponent']} ({$game['date_str']})"
-                ) . "</span>";
-                echo "</div>\n";
-            }
-        }
-        ?>
-    <?php endif; ?>
 </main>
+
+<script>
+    const sportsData = {"chicago":{"label":"Chicago","is_all":false,"leagues":{"MLB":{"latest_timestamp":1782930000,"games":[{"timestamp":1782930000,"team_name":"Cubs","label":"Baseball","outcome":"Won","vsAt":"vs","opponent":"San Diego Padres","team_score":"23","opp_score":"3","date_str":"Yesterday","date_raw":"2026-07-01T18:20Z"},{"timestamp":1782923700,"team_name":"White Sox","label":"Baseball","outcome":"Lost","vsAt":"@","opponent":"Baltimore Orioles","team_score":"1","opp_score":"6","date_str":"Yesterday","date_raw":"2026-07-01T16:35Z"},{"timestamp":1782864300,"team_name":"Cubs","label":"Baseball","outcome":"Won","vsAt":"vs","opponent":"San Diego Padres","team_score":"9","opp_score":"7","date_str":"2 days ago","date_raw":"2026-07-01T00:05Z"},{"timestamp":1782858900,"team_name":"White Sox","label":"Baseball","outcome":"Won","vsAt":"@","opponent":"Baltimore Orioles","team_score":"9","opp_score":"3","date_str":"2 days ago","date_raw":"2026-06-30T22:35Z"}],"upcoming":[{"timestamp":1783032000,"team_name":"White Sox","label":"Baseball","vsAt":"@","opponent":"Cleveland Guardians","date_str":"Jul 2, 5:40 PM","date_raw":"2026-07-02T22:40Z"},{"timestamp":1783109100,"team_name":"Cubs","label":"Baseball","vsAt":"vs","opponent":"St. Louis Cardinals","date_str":"Jul 3, 3:05 PM","date_raw":"2026-07-03T20:05Z"}]},"NFL":{"latest_timestamp":0,"games":[],"upcoming":[]},"NBA":{"latest_timestamp":0,"games":[],"upcoming":[]},"NHL":{"latest_timestamp":0,"games":[],"upcoming":[]}}},"losangeles":{"label":"Los Angeles","is_all":false,"leagues":{"MLB":{"latest_timestamp":1782956400,"games":[{"timestamp":1782956400,"team_name":"Dodgers","label":"Baseball","outcome":"Lost","vsAt":"@","opponent":"Athletics","team_score":"1","opp_score":"7","date_str":"Yesterday","date_raw":"2026-07-02T01:40Z"},{"timestamp":1782870000,"team_name":"Dodgers","label":"Baseball","outcome":"Won","vsAt":"@","opponent":"Athletics","team_score":"9","opp_score":"3","date_str":"2 days ago","date_raw":"2026-07-01T01:40Z"},{"timestamp":1782870000,"team_name":"Angels","label":"Baseball","outcome":"Lost","vsAt":"@","opponent":"Seattle Mariners","team_score":"3","opp_score":"8","date_str":"2 days ago","date_raw":"2026-07-01T01:40Z"},{"timestamp":1782783600,"team_name":"Angels","label":"Baseball","outcome":"Lost","vsAt":"@","opponent":"Seattle Mariners","team_score":"2","opp_score":"6","date_str":"Jun 29","date_raw":"2026-06-30T01:40Z"}],"upcoming":[{"timestamp":1783042800,"team_name":"Angels","label":"Baseball","vsAt":"@","opponent":"Seattle Mariners","date_str":"Jul 2, 8:40 PM","date_raw":"2026-07-03T01:40Z"},{"timestamp":1783044600,"team_name":"Dodgers","label":"Baseball","vsAt":"vs","opponent":"San Diego Padres","date_str":"Jul 2, 9:10 PM","date_raw":"2026-07-03T02:10Z"}]},"NFL":{"latest_timestamp":0,"games":[],"upcoming":[]},"NBA":{"latest_timestamp":0,"games":[],"upcoming":[]},"NHL":{"latest_timestamp":0,"games":[],"upcoming":[]}}},"newyork":{"label":"New York","is_all":false,"leagues":{"MLB":{"latest_timestamp":1782932820,"games":[{"timestamp":1782932820,"team_name":"Mets","label":"Baseball","outcome":"Lost","vsAt":"@","opponent":"Toronto Blue Jays","team_score":"3","opp_score":"9","date_str":"Yesterday","date_raw":"2026-07-01T19:07Z"},{"timestamp":1782927300,"team_name":"Yankees","label":"Baseball","outcome":"Lost","vsAt":"vs","opponent":"Detroit Tigers","team_score":"2","opp_score":"6","date_str":"Yesterday","date_raw":"2026-07-01T17:35Z"},{"timestamp":1782860820,"team_name":"Mets","label":"Baseball","outcome":"Won","vsAt":"@","opponent":"Toronto Blue Jays","team_score":"3","opp_score":"0","date_str":"2 days ago","date_raw":"2026-06-30T23:07Z"},{"timestamp":1782860700,"team_name":"Yankees","label":"Baseball","outcome":"Lost","vsAt":"vs","opponent":"Detroit Tigers","team_score":"3","opp_score":"9","date_str":"2 days ago","date_raw":"2026-06-30T23:05Z"}],"upcoming":[{"timestamp":1783119900,"team_name":"Yankees","label":"Baseball","vsAt":"vs","opponent":"Minnesota Twins","date_str":"Jul 3, 6:05 PM","date_raw":"2026-07-03T23:05Z"},{"timestamp":1783120500,"team_name":"Mets","label":"Baseball","vsAt":"@","opponent":"Atlanta Braves","date_str":"Jul 3, 6:15 PM","date_raw":"2026-07-03T23:15Z"}]},"NBA":{"latest_timestamp":1781397000,"games":[{"timestamp":1781397000,"team_name":"Knicks","label":"Basketball","outcome":"Won","vsAt":"@","opponent":"San Antonio Spurs","team_score":"94","opp_score":"90","date_str":"Jun 13","date_raw":"2026-06-14T00:30Z"},{"timestamp":1781137800,"team_name":"Knicks","label":"Basketball","outcome":"Won","vsAt":"vs","opponent":"San Antonio Spurs","team_score":"107","opp_score":"106","date_str":"Jun 10","date_raw":"2026-06-11T00:30Z"}],"upcoming":[]},"NFL":{"latest_timestamp":0,"games":[],"upcoming":[]},"NHL":{"latest_timestamp":0,"games":[],"upcoming":[]}}},"all":{"label":"All Cities","is_all":true,"leagues":{"MLB":{"latest_timestamp":1782956400,"games":[{"timestamp":1782956400,"team_name":"Dodgers","label":"Baseball","outcome":"Lost","vsAt":"@","opponent":"Athletics","team_score":"1","opp_score":"7","date_str":"Yesterday","date_raw":"2026-07-02T01:40Z"},{"timestamp":1782932820,"team_name":"Mets","label":"Baseball","outcome":"Lost","vsAt":"@","opponent":"Toronto Blue Jays","team_score":"3","opp_score":"9","date_str":"Yesterday","date_raw":"2026-07-01T19:07Z"},{"timestamp":1782930000,"team_name":"Cubs","label":"Baseball","outcome":"Won","vsAt":"vs","opponent":"San Diego Padres","team_score":"23","opp_score":"3","date_str":"Yesterday","date_raw":"2026-07-01T18:20Z"},{"timestamp":1782927300,"team_name":"Yankees","label":"Baseball","outcome":"Lost","vsAt":"vs","opponent":"Detroit Tigers","team_score":"2","opp_score":"6","date_str":"Yesterday","date_raw":"2026-07-01T17:35Z"},{"timestamp":1782923700,"team_name":"White Sox","label":"Baseball","outcome":"Lost","vsAt":"@","opponent":"Baltimore Orioles","team_score":"1","opp_score":"6","date_str":"Yesterday","date_raw":"2026-07-01T16:35Z"},{"timestamp":1782870000,"team_name":"Dodgers","label":"Baseball","outcome":"Won","vsAt":"@","opponent":"Athletics","team_score":"9","opp_score":"3","date_str":"2 days ago","date_raw":"2026-07-01T01:40Z"},{"timestamp":1782870000,"team_name":"Angels","label":"Baseball","outcome":"Lost","vsAt":"@","opponent":"Seattle Mariners","team_score":"3","opp_score":"8","date_str":"2 days ago","date_raw":"2026-07-01T01:40Z"},{"timestamp":1782864300,"team_name":"Cubs","label":"Baseball","outcome":"Won","vsAt":"vs","opponent":"San Diego Padres","team_score":"9","opp_score":"7","date_str":"2 days ago","date_raw":"2026-07-01T00:05Z"},{"timestamp":1782860820,"team_name":"Mets","label":"Baseball","outcome":"Won","vsAt":"@","opponent":"Toronto Blue Jays","team_score":"3","opp_score":"0","date_str":"2 days ago","date_raw":"2026-06-30T23:07Z"},{"timestamp":1782860700,"team_name":"Yankees","label":"Baseball","outcome":"Lost","vsAt":"vs","opponent":"Detroit Tigers","team_score":"3","opp_score":"9","date_str":"2 days ago","date_raw":"2026-06-30T23:05Z"},{"timestamp":1782858900,"team_name":"White Sox","label":"Baseball","outcome":"Won","vsAt":"@","opponent":"Baltimore Orioles","team_score":"9","opp_score":"3","date_str":"2 days ago","date_raw":"2026-06-30T22:35Z"},{"timestamp":1782783600,"team_name":"Angels","label":"Baseball","outcome":"Lost","vsAt":"@","opponent":"Seattle Mariners","team_score":"2","opp_score":"6","date_str":"Jun 29","date_raw":"2026-06-30T01:40Z"}],"upcoming":[{"timestamp":1783032000,"team_name":"White Sox","label":"Baseball","vsAt":"@","opponent":"Cleveland Guardians","date_str":"Jul 2, 5:40 PM","date_raw":"2026-07-02T22:40Z"},{"timestamp":1783042800,"team_name":"Angels","label":"Baseball","vsAt":"@","opponent":"Seattle Mariners","date_str":"Jul 2, 8:40 PM","date_raw":"2026-07-03T01:40Z"},{"timestamp":1783044600,"team_name":"Dodgers","label":"Baseball","vsAt":"vs","opponent":"San Diego Padres","date_str":"Jul 2, 9:10 PM","date_raw":"2026-07-03T02:10Z"},{"timestamp":1783109100,"team_name":"Cubs","label":"Baseball","vsAt":"vs","opponent":"St. Louis Cardinals","date_str":"Jul 3, 3:05 PM","date_raw":"2026-07-03T20:05Z"},{"timestamp":1783119900,"team_name":"Yankees","label":"Baseball","vsAt":"vs","opponent":"Minnesota Twins","date_str":"Jul 3, 6:05 PM","date_raw":"2026-07-03T23:05Z"},{"timestamp":1783120500,"team_name":"Mets","label":"Baseball","vsAt":"@","opponent":"Atlanta Braves","date_str":"Jul 3, 6:15 PM","date_raw":"2026-07-03T23:15Z"}]},"NBA":{"latest_timestamp":1781397000,"games":[{"timestamp":1781397000,"team_name":"Knicks","label":"Basketball","outcome":"Won","vsAt":"@","opponent":"San Antonio Spurs","team_score":"94","opp_score":"90","date_str":"Jun 13","date_raw":"2026-06-14T00:30Z"},{"timestamp":1781137800,"team_name":"Knicks","label":"Basketball","outcome":"Won","vsAt":"vs","opponent":"San Antonio Spurs","team_score":"107","opp_score":"106","date_str":"Jun 10","date_raw":"2026-06-11T00:30Z"}],"upcoming":[]},"NFL":{"latest_timestamp":0,"games":[],"upcoming":[]},"NHL":{"latest_timestamp":0,"games":[],"upcoming":[]}}}};
+    
+    const citySelect = document.getElementById('city');
+    const resultsContainer = document.getElementById('results-container');
+
+    function escapeHTML(str) {
+        return String(str).replace(/[&<>'"]/g, 
+            tag => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                "'": '&#39;',
+                '"': '&quot;'
+            }[tag] || tag)
+        );
+    }
+
+    function renderResults() {
+        const cityId = citySelect.value;
+        resultsContainer.innerHTML = ''; 
+
+        if (!cityId || !sportsData[cityId]) return;
+
+        const cityData = sportsData[cityId];
+        let html = '';
+
+        for (const [league, data] of Object.entries(cityData.leagues)) {
+            html += `<h2>${escapeHTML(league)}</h2>`;
+            
+            // Upcoming Games
+            if (data.upcoming.length > 0) {
+                data.upcoming.forEach(game => {
+                    const title = `${game.team_name} ${game.label}`;
+                    const details = `${game.vsAt} ${game.opponent} (${game.date_str})`;
+                    
+                    html += `
+                        <div class="game-card upcoming" title="Raw date: ${escapeHTML(game.date_raw)}">
+                            <strong>[Upcoming] ${escapeHTML(title)}</strong>
+                            <span class="game-details">${escapeHTML(details)}</span>
+                        </div>
+                    `;
+                });
+            }
+
+            // Completed Games
+            if (data.games.length === 0 && data.upcoming.length === 0) {
+                html += `<p class="no-results">No recent or upcoming results available</p>`;
+            } else {
+                data.games.forEach(game => {
+                    const title = `${game.team_name} ${game.outcome} ${game.label}`;
+                    const details = `— ${game.team_score}-${game.opp_score} ${game.vsAt} ${game.opponent} (${game.date_str})`;
+                    
+                    html += `
+                        <div class="game-card" title="Raw date: ${escapeHTML(game.date_raw)}">
+                            <strong>${escapeHTML(title)}</strong>
+                            <span class="game-details">${escapeHTML(details)}</span>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        resultsContainer.innerHTML = html;
+    }
+
+    citySelect.addEventListener('change', renderResults);
+    renderResults();
+</script>
 
 </body>
 </html>
