@@ -35,43 +35,43 @@ $CITIES = [
             ['league' => 'mlb', 'name' => 'Braves',  'abbr' => 'atl'],
         ],
     ],
-    // 'baltimore' => [
-    //     'label' => 'Baltimore',
-    //     'teams' => [
-    //         ['league' => 'nfl', 'name' => 'Ravens',  'abbr' => 'bal'],
-    //         ['league' => 'mlb', 'name' => 'Orioles', 'abbr' => 'bal'],
-    //     ],
-    // ],
-    // 'boston' => [
-    //     'label' => 'Boston / New England',
-    //     'teams' => [
-    //         ['league' => 'nfl', 'name' => 'Patriots', 'abbr' => 'ne'],
-    //         ['league' => 'nba', 'name' => 'Celtics',  'abbr' => 'bos'],
-    //         ['league' => 'mlb', 'name' => 'Red Sox',  'abbr' => 'bos'],
-    //         ['league' => 'nhl', 'name' => 'Bruins',   'abbr' => 'bos'],
-    //     ],
-    // ],
-    // 'buffalo' => [
-    //     'label' => 'Buffalo',
-    //     'teams' => [
-    //         ['league' => 'nfl', 'name' => 'Bills',  'abbr' => 'buf'],
-    //         ['league' => 'nhl', 'name' => 'Sabres', 'abbr' => 'buf'],
-    //     ],
-    // ],
-    // 'calgary' => [
-    //     'label' => 'Calgary',
-    //     'teams' => [
-    //         ['league' => 'nhl', 'name' => 'Flames', 'abbr' => 'cgy'],
-    //     ],
-    // ],
-    // 'carolina' => [
-    //     'label' => 'Carolina / Charlotte',
-    //     'teams' => [
-    //         ['league' => 'nfl', 'name' => 'Panthers',   'abbr' => 'car'],
-    //         ['league' => 'nba', 'name' => 'Hornets',    'abbr' => 'cha'],
-    //         ['league' => 'nhl', 'name' => 'Hurricanes', 'abbr' => 'car'],
-    //     ],
-    // ],
+    'baltimore' => [
+        'label' => 'Baltimore',
+        'teams' => [
+            ['league' => 'nfl', 'name' => 'Ravens',  'abbr' => 'bal'],
+            ['league' => 'mlb', 'name' => 'Orioles', 'abbr' => 'bal'],
+        ],
+    ],
+    'boston' => [
+        'label' => 'Boston / New England',
+        'teams' => [
+            ['league' => 'nfl', 'name' => 'Patriots', 'abbr' => 'ne'],
+            ['league' => 'nba', 'name' => 'Celtics',  'abbr' => 'bos'],
+            ['league' => 'mlb', 'name' => 'Red Sox',  'abbr' => 'bos'],
+            ['league' => 'nhl', 'name' => 'Bruins',   'abbr' => 'bos'],
+        ],
+    ],
+    'buffalo' => [
+        'label' => 'Buffalo',
+        'teams' => [
+            ['league' => 'nfl', 'name' => 'Bills',  'abbr' => 'buf'],
+            ['league' => 'nhl', 'name' => 'Sabres', 'abbr' => 'buf'],
+        ],
+    ],
+    'calgary' => [
+        'label' => 'Calgary',
+        'teams' => [
+            ['league' => 'nhl', 'name' => 'Flames', 'abbr' => 'cgy'],
+        ],
+    ],
+    'carolina' => [
+        'label' => 'Carolina / Charlotte',
+        'teams' => [
+            ['league' => 'nfl', 'name' => 'Panthers',   'abbr' => 'car'],
+            ['league' => 'nba', 'name' => 'Hornets',    'abbr' => 'cha'],
+            ['league' => 'nhl', 'name' => 'Hurricanes', 'abbr' => 'car'],
+        ],
+    ],
     'chicago' => [
         'label' => 'Chicago',
         'teams' => [
@@ -82,60 +82,60 @@ $CITIES = [
             ['league' => 'nhl', 'name' => 'Blackhawks', 'abbr' => 'chi'],
         ],
     ],
-    // 'cincinnati' => [
-    //     'label' => 'Cincinnati',
-    //     'teams' => [
-    //         ['league' => 'nfl', 'name' => 'Bengals', 'abbr' => 'cin'],
-    //         ['league' => 'mlb', 'name' => 'Reds',    'abbr' => 'cin'],
-    //     ],
-    // ],
-    // 'cleveland' => [
-    //     'label' => 'Cleveland',
-    //     'teams' => [
-    //         ['league' => 'nfl', 'name' => 'Browns',     'abbr' => 'cle'],
-    //         ['league' => 'nba', 'name' => 'Cavaliers',  'abbr' => 'cle'],
-    //         ['league' => 'mlb', 'name' => 'Guardians',  'abbr' => 'cle'],
-    //     ],
-    // ],
-    // 'colorado' => [
-    //     'label' => 'Colorado / Denver',
-    //     'teams' => [
-    //         ['league' => 'nfl', 'name' => 'Broncos',   'abbr' => 'den'],
-    //         ['league' => 'nba', 'name' => 'Nuggets',   'abbr' => 'den'],
-    //         ['league' => 'mlb', 'name' => 'Rockies',   'abbr' => 'col'],
-    //         ['league' => 'nhl', 'name' => 'Avalanche', 'abbr' => 'col'],
-    //     ],
-    // ],
-    // 'columbus' => [
-    //     'label' => 'Columbus',
-    //     'teams' => [
-    //         ['league' => 'nhl', 'name' => 'Blue Jackets', 'abbr' => 'cbj'],
-    //     ],
-    // ],
-    // 'dallas' => [
-    //     'label' => 'Dallas / Texas',
-    //     'teams' => [
-    //         ['league' => 'nfl', 'name' => 'Cowboys',   'abbr' => 'dal'],
-    //         ['league' => 'nba', 'name' => 'Mavericks', 'abbr' => 'dal'],
-    //         ['league' => 'mlb', 'name' => 'Rangers',   'abbr' => 'tex'],
-    //         ['league' => 'nhl', 'name' => 'Stars',     'abbr' => 'dal'],
-    //     ],
-    // ],
-    // 'detroit' => [
-    //     'label' => 'Detroit',
-    //     'teams' => [
-    //         ['league' => 'nfl', 'name' => 'Lions',     'abbr' => 'det'],
-    //         ['league' => 'nba', 'name' => 'Pistons',   'abbr' => 'det'],
-    //         ['league' => 'mlb', 'name' => 'Tigers',    'abbr' => 'det'],
-    //         ['league' => 'nhl', 'name' => 'Red Wings', 'abbr' => 'det'],
-    //     ],
-    // ],
-    // 'edmonton' => [
-    //     'label' => 'Edmonton',
-    //     'teams' => [
-    //         ['league' => 'nhl', 'name' => 'Oilers', 'abbr' => 'edm'],
-    //     ],
-    // ],
+    'cincinnati' => [
+        'label' => 'Cincinnati',
+        'teams' => [
+            ['league' => 'nfl', 'name' => 'Bengals', 'abbr' => 'cin'],
+            ['league' => 'mlb', 'name' => 'Reds',    'abbr' => 'cin'],
+        ],
+    ],
+    'cleveland' => [
+        'label' => 'Cleveland',
+        'teams' => [
+            ['league' => 'nfl', 'name' => 'Browns',     'abbr' => 'cle'],
+            ['league' => 'nba', 'name' => 'Cavaliers',  'abbr' => 'cle'],
+            ['league' => 'mlb', 'name' => 'Guardians',  'abbr' => 'cle'],
+        ],
+    ],
+    'colorado' => [
+        'label' => 'Colorado / Denver',
+        'teams' => [
+            ['league' => 'nfl', 'name' => 'Broncos',   'abbr' => 'den'],
+            ['league' => 'nba', 'name' => 'Nuggets',   'abbr' => 'den'],
+            ['league' => 'mlb', 'name' => 'Rockies',   'abbr' => 'col'],
+            ['league' => 'nhl', 'name' => 'Avalanche', 'abbr' => 'col'],
+        ],
+    ],
+    'columbus' => [
+        'label' => 'Columbus',
+        'teams' => [
+            ['league' => 'nhl', 'name' => 'Blue Jackets', 'abbr' => 'cbj'],
+        ],
+    ],
+    'dallas' => [
+        'label' => 'Dallas / Texas',
+        'teams' => [
+            ['league' => 'nfl', 'name' => 'Cowboys',   'abbr' => 'dal'],
+            ['league' => 'nba', 'name' => 'Mavericks', 'abbr' => 'dal'],
+            ['league' => 'mlb', 'name' => 'Rangers',   'abbr' => 'tex'],
+            ['league' => 'nhl', 'name' => 'Stars',     'abbr' => 'dal'],
+        ],
+    ],
+    'detroit' => [
+        'label' => 'Detroit',
+        'teams' => [
+            ['league' => 'nfl', 'name' => 'Lions',     'abbr' => 'det'],
+            ['league' => 'nba', 'name' => 'Pistons',   'abbr' => 'det'],
+            ['league' => 'mlb', 'name' => 'Tigers',    'abbr' => 'det'],
+            ['league' => 'nhl', 'name' => 'Red Wings', 'abbr' => 'det'],
+        ],
+    ],
+    'edmonton' => [
+        'label' => 'Edmonton',
+        'teams' => [
+            ['league' => 'nhl', 'name' => 'Oilers', 'abbr' => 'edm'],
+        ],
+    ],
     'florida' => [
         'label' => 'Miami / South Florida',
         'teams' => [
@@ -145,47 +145,47 @@ $CITIES = [
             ['league' => 'nhl', 'name' => 'Panthers', 'abbr' => 'fla'],
         ],
     ],
-    // 'greenbay' => [
-    //     'label' => 'Green Bay',
-    //     'teams' => [
-    //         ['league' => 'nfl', 'name' => 'Packers', 'abbr' => 'gb'],
-    //     ],
-    // ],
-    // 'houston' => [
-    //     'label' => 'Houston',
-    //     'teams' => [
-    //         ['league' => 'nfl', 'name' => 'Texans',  'abbr' => 'hou'],
-    //         ['league' => 'nba', 'name' => 'Rockets', 'abbr' => 'hou'],
-    //         ['league' => 'mlb', 'name' => 'Astros',  'abbr' => 'hou'],
-    //     ],
-    // ],
-    // 'indiana' => [
-    //     'label' => 'Indianapolis / Indiana',
-    //     'teams' => [
-    //         ['league' => 'nfl', 'name' => 'Colts',  'abbr' => 'ind'],
-    //         ['league' => 'nba', 'name' => 'Pacers', 'abbr' => 'ind'],
-    //     ],
-    // ],
-    // 'jacksonville' => [
-    //     'label' => 'Jacksonville',
-    //     'teams' => [
-    //         ['league' => 'nfl', 'name' => 'Jaguars', 'abbr' => 'jax'],
-    //     ],
-    // ],
-    // 'kansascity' => [
-    //     'label' => 'Kansas City',
-    //     'teams' => [
-    //         ['league' => 'nfl', 'name' => 'Chiefs', 'abbr' => 'kc'],
-    //         ['league' => 'mlb', 'name' => 'Royals', 'abbr' => 'kc'],
-    //     ],
-    // ],
-    // 'lasvegas' => [
-    //     'label' => 'Las Vegas',
-    //     'teams' => [
-    //         ['league' => 'nfl', 'name' => 'Raiders',        'abbr' => 'lv'],
-    //         ['league' => 'nhl', 'name' => 'Golden Knights', 'abbr' => 'vgk'],
-    //     ],
-    // ],
+    'greenbay' => [
+        'label' => 'Green Bay',
+        'teams' => [
+            ['league' => 'nfl', 'name' => 'Packers', 'abbr' => 'gb'],
+        ],
+    ],
+    'houston' => [
+        'label' => 'Houston',
+        'teams' => [
+            ['league' => 'nfl', 'name' => 'Texans',  'abbr' => 'hou'],
+            ['league' => 'nba', 'name' => 'Rockets', 'abbr' => 'hou'],
+            ['league' => 'mlb', 'name' => 'Astros',  'abbr' => 'hou'],
+        ],
+    ],
+    'indiana' => [
+        'label' => 'Indianapolis / Indiana',
+        'teams' => [
+            ['league' => 'nfl', 'name' => 'Colts',  'abbr' => 'ind'],
+            ['league' => 'nba', 'name' => 'Pacers', 'abbr' => 'ind'],
+        ],
+    ],
+    'jacksonville' => [
+        'label' => 'Jacksonville',
+        'teams' => [
+            ['league' => 'nfl', 'name' => 'Jaguars', 'abbr' => 'jax'],
+        ],
+    ],
+    'kansascity' => [
+        'label' => 'Kansas City',
+        'teams' => [
+            ['league' => 'nfl', 'name' => 'Chiefs', 'abbr' => 'kc'],
+            ['league' => 'mlb', 'name' => 'Royals', 'abbr' => 'kc'],
+        ],
+    ],
+    'lasvegas' => [
+        'label' => 'Las Vegas',
+        'teams' => [
+            ['league' => 'nfl', 'name' => 'Raiders',        'abbr' => 'lv'],
+            ['league' => 'nhl', 'name' => 'Golden Knights', 'abbr' => 'vgk'],
+        ],
+    ],
     'losangeles' => [
         'label' => 'Los Angeles',
         'teams' => [
@@ -198,19 +198,19 @@ $CITIES = [
             ['league' => 'nhl', 'name' => 'Kings',    'abbr' => 'la'],
         ],
     ],
-    // 'memphis' => [
-    //     'label' => 'Memphis',
-    //     'teams' => [
-    //         ['league' => 'nba', 'name' => 'Grizzlies', 'abbr' => 'mem'],
-    //     ],
-    // ],
-    // 'milwaukee' => [
-    //     'label' => 'Milwaukee',
-    //     'teams' => [
-    //         ['league' => 'nba', 'name' => 'Bucks',   'abbr' => 'mil'],
-    //         ['league' => 'mlb', 'name' => 'Brewers', 'abbr' => 'mil'],
-    //     ],
-    // ],
+    'memphis' => [
+        'label' => 'Memphis',
+        'teams' => [
+            ['league' => 'nba', 'name' => 'Grizzlies', 'abbr' => 'mem'],
+        ],
+    ],
+    'milwaukee' => [
+        'label' => 'Milwaukee',
+        'teams' => [
+            ['league' => 'nba', 'name' => 'Bucks',   'abbr' => 'mil'],
+            ['league' => 'mlb', 'name' => 'Brewers', 'abbr' => 'mil'],
+        ],
+    ],
     'minnesota' => [
         'label' => 'Minnesota / Minneapolis',
         'teams' => [
@@ -220,26 +220,26 @@ $CITIES = [
             ['league' => 'nhl', 'name' => 'Wild',         'abbr' => 'min'],
         ],
     ],
-    // 'montreal' => [
-    //     'label' => 'Montreal',
-    //     'teams' => [
-    //         ['league' => 'nhl', 'name' => 'Canadiens', 'abbr' => 'mtl'],
-    //     ],
-    // ],
-    // 'nashville' => [
-    //     'label' => 'Nashville / Tennessee',
-    //     'teams' => [
-    //         ['league' => 'nfl', 'name' => 'Titans',    'abbr' => 'ten'],
-    //         ['league' => 'nhl', 'name' => 'Predators', 'abbr' => 'nsh'],
-    //     ],
-    // ],
-    // 'neworleans' => [
-    //     'label' => 'New Orleans',
-    //     'teams' => [
-    //         ['league' => 'nfl', 'name' => 'Saints',   'abbr' => 'no'],
-    //         ['league' => 'nba', 'name' => 'Pelicans', 'abbr' => 'no'],
-    //     ],
-    // ],
+    'montreal' => [
+        'label' => 'Montreal',
+        'teams' => [
+            ['league' => 'nhl', 'name' => 'Canadiens', 'abbr' => 'mtl'],
+        ],
+    ],
+    'nashville' => [
+        'label' => 'Nashville / Tennessee',
+        'teams' => [
+            ['league' => 'nfl', 'name' => 'Titans',    'abbr' => 'ten'],
+            ['league' => 'nhl', 'name' => 'Predators', 'abbr' => 'nsh'],
+        ],
+    ],
+    'neworleans' => [
+        'label' => 'New Orleans',
+        'teams' => [
+            ['league' => 'nfl', 'name' => 'Saints',   'abbr' => 'no'],
+            ['league' => 'nba', 'name' => 'Pelicans', 'abbr' => 'no'],
+        ],
+    ],
     'newyork' => [
         'label' => 'New York',
         'teams' => [
@@ -253,33 +253,33 @@ $CITIES = [
             ['league' => 'nhl', 'name' => 'Islanders', 'abbr' => 'nyi'],
         ],
     ],
-    // 'oklahomacity' => [
-    //     'label' => 'Oklahoma City',
-    //     'teams' => [
-    //         ['league' => 'nba', 'name' => 'Thunder', 'abbr' => 'okc'],
-    //     ],
-    // ],
-    // 'orlando' => [
-    //     'label' => 'Orlando',
-    //     'teams' => [
-    //         ['league' => 'nba', 'name' => 'Magic', 'abbr' => 'orl'],
-    //     ],
-    // ],
-    // 'ottawa' => [
-    //     'label' => 'Ottawa',
-    //     'teams' => [
-    //         ['league' => 'nhl', 'name' => 'Senators', 'abbr' => 'ott'],
-    //     ],
-    // ],
-    // 'philadelphia' => [
-    //     'label' => 'Philadelphia',
-    //     'teams' => [
-    //         ['league' => 'nfl', 'name' => 'Eagles',   'abbr' => 'phi'],
-    //         ['league' => 'nba', 'name' => '76ers',    'abbr' => 'phi'],
-    //         ['league' => 'mlb', 'name' => 'Phillies', 'abbr' => 'phi'],
-    //         ['league' => 'nhl', 'name' => 'Flyers',   'abbr' => 'phi'],
-    //     ],
-    // ],
+    'oklahomacity' => [
+        'label' => 'Oklahoma City',
+        'teams' => [
+            ['league' => 'nba', 'name' => 'Thunder', 'abbr' => 'okc'],
+        ],
+    ],
+    'orlando' => [
+        'label' => 'Orlando',
+        'teams' => [
+            ['league' => 'nba', 'name' => 'Magic', 'abbr' => 'orl'],
+        ],
+    ],
+    'ottawa' => [
+        'label' => 'Ottawa',
+        'teams' => [
+            ['league' => 'nhl', 'name' => 'Senators', 'abbr' => 'ott'],
+        ],
+    ],
+    'philadelphia' => [
+        'label' => 'Philadelphia',
+        'teams' => [
+            ['league' => 'nfl', 'name' => 'Eagles',   'abbr' => 'phi'],
+            ['league' => 'nba', 'name' => '76ers',    'abbr' => 'phi'],
+            ['league' => 'mlb', 'name' => 'Phillies', 'abbr' => 'phi'],
+            ['league' => 'nhl', 'name' => 'Flyers',   'abbr' => 'phi'],
+        ],
+    ],
     'pittsburgh' => [
         'label' => 'Pittsburgh',
         'teams' => [
@@ -288,30 +288,30 @@ $CITIES = [
             ['league' => 'nhl', 'name' => 'Penguins', 'abbr' => 'pit'],
         ],
     ],
-    // 'portland' => [
-    //     'label' => 'Portland',
-    //     'teams' => [
-    //         ['league' => 'nba', 'name' => 'Trail Blazers', 'abbr' => 'por'],
-    //     ],
-    // ],
-    // 'sacramento' => [
-    //     'label' => 'Sacramento',
-    //     'teams' => [
-    //         ['league' => 'nba', 'name' => 'Kings', 'abbr' => 'sac'],
-    //     ],
-    // ],
-    // 'sanantonio' => [
-    //     'label' => 'San Antonio',
-    //     'teams' => [
-    //         ['league' => 'nba', 'name' => 'Spurs', 'abbr' => 'sas'],
-    //     ],
-    // ],
-    // 'sandiego' => [
-    //     'label' => 'San Diego',
-    //     'teams' => [
-    //         ['league' => 'mlb', 'name' => 'Padres', 'abbr' => 'sd'],
-    //     ],
-    // ],
+    'portland' => [
+        'label' => 'Portland',
+        'teams' => [
+            ['league' => 'nba', 'name' => 'Trail Blazers', 'abbr' => 'por'],
+        ],
+    ],
+    'sacramento' => [
+        'label' => 'Sacramento',
+        'teams' => [
+            ['league' => 'nba', 'name' => 'Kings', 'abbr' => 'sac'],
+        ],
+    ],
+    'sanantonio' => [
+        'label' => 'San Antonio',
+        'teams' => [
+            ['league' => 'nba', 'name' => 'Spurs', 'abbr' => 'sas'],
+        ],
+    ],
+    'sandiego' => [
+        'label' => 'San Diego',
+        'teams' => [
+            ['league' => 'mlb', 'name' => 'Padres', 'abbr' => 'sd'],
+        ],
+    ],
     'sanfrancisco' => [
         'label' => 'San Francisco / Bay Area',
         'teams' => [
@@ -322,63 +322,63 @@ $CITIES = [
             ['league' => 'nhl', 'name' => 'Sharks',    'abbr' => 'sjs'],
         ],
     ],
-    // 'seattle' => [
-    //     'label' => 'Seattle',
-    //     'teams' => [
-    //         ['league' => 'nfl', 'name' => 'Seahawks', 'abbr' => 'sea'],
-    //         ['league' => 'mlb', 'name' => 'Mariners', 'abbr' => 'sea'],
-    //         ['league' => 'nhl', 'name' => 'Kraken',   'abbr' => 'sea'],
-    //     ],
-    // ],
-    // 'stlouis' => [
-    //     'label' => 'St. Louis',
-    //     'teams' => [
-    //         ['league' => 'mlb', 'name' => 'Cardinals', 'abbr' => 'stl'],
-    //         ['league' => 'nhl', 'name' => 'Blues',     'abbr' => 'stl'],
-    //     ],
-    // ],
-    // 'tampabay' => [
-    //     'label' => 'Tampa Bay',
-    //     'teams' => [
-    //         ['league' => 'nfl', 'name' => 'Buccaneers', 'abbr' => 'tb'],
-    //         ['league' => 'mlb', 'name' => 'Rays',       'abbr' => 'tb'],
-    //         ['league' => 'nhl', 'name' => 'Lightning',  'abbr' => 'tb'],
-    //     ],
-    // ],
-    // 'toronto' => [
-    //     'label' => 'Toronto',
-    //     'teams' => [
-    //         ['league' => 'nba', 'name' => 'Raptors',     'abbr' => 'tor'],
-    //         ['league' => 'mlb', 'name' => 'Blue Jays',   'abbr' => 'tor'],
-    //         ['league' => 'nhl', 'name' => 'Maple Leafs', 'abbr' => 'tor'],
-    //     ],
-    // ],
-    // 'utah' => [
-    //     'label' => 'Utah / Salt Lake City',
-    //     'teams' => [
-    //         ['league' => 'nba', 'name' => 'Jazz',             'abbr' => 'uta'],
-    //         ['league' => 'nhl', 'name' => 'Utah Hockey Club', 'abbr' => 'uta'],
-    //     ],
-    // ],
-    // 'vancouver' => [
-    //     'label' => 'Vancouver',
-    //     'teams' => [
-    //         ['league' => 'nhl', 'name' => 'Canucks', 'abbr' => 'van'],
-    //     ],
-    // ],
-    // 'washington' => [
-    //     'label' => 'Washington D.C.',
-    //     'teams' => [
-    //         ['league' => 'nfl', 'name' => 'Commanders', 'abbr' => 'was'],
-    //         ['league' => 'nba', 'name' => 'Wizards',    'abbr' => 'was'],
-    //         ['league' => 'mlb', 'name' => 'Nationals',  'abbr' => 'wsh'],
-    //         ['league' => 'nhl', 'name' => 'Capitals',   'abbr' => 'wsh'],
-    //     ],
-    // ],
-    // 'winnipeg' => [
-    //     'label' => 'Winnipeg',
-    //     'teams' => [
-    //         ['league' => 'nhl', 'name' => 'Jets', 'abbr' => 'wpg'],
-    //     ],
-    // ],
+    'seattle' => [
+        'label' => 'Seattle',
+        'teams' => [
+            ['league' => 'nfl', 'name' => 'Seahawks', 'abbr' => 'sea'],
+            ['league' => 'mlb', 'name' => 'Mariners', 'abbr' => 'sea'],
+            ['league' => 'nhl', 'name' => 'Kraken',   'abbr' => 'sea'],
+        ],
+    ],
+    'stlouis' => [
+        'label' => 'St. Louis',
+        'teams' => [
+            ['league' => 'mlb', 'name' => 'Cardinals', 'abbr' => 'stl'],
+            ['league' => 'nhl', 'name' => 'Blues',     'abbr' => 'stl'],
+        ],
+    ],
+    'tampabay' => [
+        'label' => 'Tampa Bay',
+        'teams' => [
+            ['league' => 'nfl', 'name' => 'Buccaneers', 'abbr' => 'tb'],
+            ['league' => 'mlb', 'name' => 'Rays',       'abbr' => 'tb'],
+            ['league' => 'nhl', 'name' => 'Lightning',  'abbr' => 'tb'],
+        ],
+    ],
+    'toronto' => [
+        'label' => 'Toronto',
+        'teams' => [
+            ['league' => 'nba', 'name' => 'Raptors',     'abbr' => 'tor'],
+            ['league' => 'mlb', 'name' => 'Blue Jays',   'abbr' => 'tor'],
+            ['league' => 'nhl', 'name' => 'Maple Leafs', 'abbr' => 'tor'],
+        ],
+    ],
+    'utah' => [
+        'label' => 'Utah / Salt Lake City',
+        'teams' => [
+            ['league' => 'nba', 'name' => 'Jazz',             'abbr' => 'uta'],
+            ['league' => 'nhl', 'name' => 'Utah Hockey Club', 'abbr' => 'uta'],
+        ],
+    ],
+    'vancouver' => [
+        'label' => 'Vancouver',
+        'teams' => [
+            ['league' => 'nhl', 'name' => 'Canucks', 'abbr' => 'van'],
+        ],
+    ],
+    'washington' => [
+        'label' => 'Washington D.C.',
+        'teams' => [
+            ['league' => 'nfl', 'name' => 'Commanders', 'abbr' => 'was'],
+            ['league' => 'nba', 'name' => 'Wizards',    'abbr' => 'was'],
+            ['league' => 'mlb', 'name' => 'Nationals',  'abbr' => 'wsh'],
+            ['league' => 'nhl', 'name' => 'Capitals',   'abbr' => 'wsh'],
+        ],
+    ],
+    'winnipeg' => [
+        'label' => 'Winnipeg',
+        'teams' => [
+            ['league' => 'nhl', 'name' => 'Jets', 'abbr' => 'wpg'],
+        ],
+    ],
 ];

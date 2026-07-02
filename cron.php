@@ -2,38 +2,41 @@
 declare(strict_types=1);
 date_default_timezone_set('America/Chicago');
 
-// Ensure this script can run as long as it needs to and isn't memory capped
 set_time_limit(0);
 ini_set('memory_limit', '256M');
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/api.php';
 
-// 1. Build an array of EVERY team's URL across ALL cities
-$urls = [];
-foreach ($CITIES as $cityKey => $cityData) {
-    foreach ($cityData['teams'] as $i => $team) {
-        $sportInfo = $SPORT_LABELS[$team['league']] ?? null;
-        if (!$sportInfo) {
-            continue;
+$database = [];
+$allLeaguesData = [];
+$oneMonthAgo = strtotime('-1 month');
+
+// Initialize the master "All Cities" array structure upfront
+foreach ($CITIES as $cityData) {
+    foreach ($cityData['teams'] as $team) {
+        $leagueKey = strtoupper($team['league']);
+        if (!isset($allLeaguesData[$leagueKey])) {
+            $allLeaguesData[$leagueKey] = [
+                'latest_timestamp' => 0,
+                'games'            => [],
+                'upcoming'         => []
+            ];
         }
-        $requestKey = "{$cityKey}_{$i}";
-        $urls[$requestKey] = schedule_url($sportInfo['sport'], $team['league'], $team['abbr']);
     }
 }
 
-// 2. Fetch all URLs in parallel
-$scheduleResponses = fetch_json_multi($urls);
+echo "Starting data fetch and compilation...\n";
 
-// 3. Process the results into a structured pre-computed database
-$database = [];
-$oneMonthAgo = strtotime('-1 month');
-
+// Process City by City to keep memory usage flat
 foreach ($CITIES as $cityKey => $cityData) {
-    $leaguesData = [];
+    echo "Processing {$cityData['label']}...\n";
     
-    // Initialize leagues
-    foreach ($cityData['teams'] as $team) {
+    $cityUrls = [];
+    $leaguesData = [];
+
+    // Setup leagues and URLs for just this city
+    foreach ($cityData['teams'] as $i => $team) {
         $leagueKey = strtoupper($team['league']);
         if (!isset($leaguesData[$leagueKey])) {
             $leaguesData[$leagueKey] = [
@@ -42,18 +45,28 @@ foreach ($CITIES as $cityKey => $cityData) {
                 'upcoming'         => []
             ];
         }
+
+        $sportInfo = $SPORT_LABELS[$team['league']] ?? null;
+        if ($sportInfo) {
+            $cityUrls["{$cityKey}_{$i}"] = schedule_url($sportInfo['sport'], $team['league'], $team['abbr']);
+        }
     }
 
-    // Process games
+    // Fetch only this city's data in parallel
+    $scheduleResponses = fetch_json_multi($cityUrls);
+
+    // Process games for this city
     foreach ($cityData['teams'] as $i => $team) {
         $leagueKey  = strtoupper($team['league']);
         $sportInfo  = $SPORT_LABELS[$team['league']] ?? null;
         $requestKey = "{$cityKey}_{$i}";
         
-        if (!$sportInfo) continue;
+        if (!$sportInfo || empty($scheduleResponses[$requestKey])) continue;
+
+        $rawSchedule = $scheduleResponses[$requestKey];
 
         // --- Process Last Completed Games ---
-        $games = last_completed_games($scheduleResponses[$requestKey] ?? null, 2);
+        $games = last_completed_games($rawSchedule, 2);
         foreach ($games as $event) {
             $gameTimestamp = isset($event['date']) ? strtotime($event['date']) : 0;
 
@@ -80,7 +93,7 @@ foreach ($CITIES as $cityKey => $cityData) {
             $outcome = $result['won'] ? 'Won' : 'Lost';
             $vsAt    = $result['is_home'] ? 'vs' : '@';
 
-            $leaguesData[$leagueKey]['games'][] = [
+            $gameRecord = [
                 'timestamp'  => $gameTimestamp,
                 'team_name'  => $team['name'],
                 'label'      => $sportInfo['label'],
@@ -93,13 +106,19 @@ foreach ($CITIES as $cityKey => $cityData) {
                 'date_raw'   => $result['date_raw'],
             ];
 
+            $leaguesData[$leagueKey]['games'][] = $gameRecord;
+            $allLeaguesData[$leagueKey]['games'][] = $gameRecord; // Add to global list immediately
+
             if ($gameTimestamp > $leaguesData[$leagueKey]['latest_timestamp']) {
                 $leaguesData[$leagueKey]['latest_timestamp'] = $gameTimestamp;
+            }
+            if ($gameTimestamp > $allLeaguesData[$leagueKey]['latest_timestamp']) {
+                $allLeaguesData[$leagueKey]['latest_timestamp'] = $gameTimestamp;
             }
         }
 
         // --- Process Upcoming Game ---
-        $upcomingResult = get_upcoming_game($scheduleResponses[$requestKey] ?? null, $team['abbr']);
+        $upcomingResult = get_upcoming_game($rawSchedule, $team['abbr']);
         if ($upcomingResult) {
             $upcomingTimestamp = strtotime($upcomingResult['date_raw']);
             $gameDateStr       = date('Y-m-d', $upcomingTimestamp);
@@ -114,7 +133,7 @@ foreach ($CITIES as $cityKey => $cityData) {
                 $relativeUpcoming = date('M j, g:i A', $upcomingTimestamp);
             }
 
-            $leaguesData[$leagueKey]['upcoming'][] = [
+            $upcomingRecord = [
                 'timestamp' => $upcomingTimestamp,
                 'team_name' => $team['name'],
                 'label'     => $sportInfo['label'],
@@ -123,22 +142,20 @@ foreach ($CITIES as $cityKey => $cityData) {
                 'date_str'  => $relativeUpcoming,
                 'date_raw'  => $upcomingResult['date_raw'],
             ];
+
+            $leaguesData[$leagueKey]['upcoming'][] = $upcomingRecord;
+            $allLeaguesData[$leagueKey]['upcoming'][] = $upcomingRecord; // Add to global list immediately
         }
     }
 
-    // Sort leagues by latest game, and games within leagues by newest first
+    // Sort city leagues
     uasort($leaguesData, function ($a, $b) {
         return $b['latest_timestamp'] <=> $a['latest_timestamp'];
     });
 
     foreach ($leaguesData as &$data) {
-        usort($data['games'], function ($a, $b) {
-            return $b['timestamp'] <=> $a['timestamp'];
-        });
-        
-        usort($data['upcoming'], function ($a, $b) {
-            return $a['timestamp'] <=> $b['timestamp']; // Soonest first
-        });
+        usort($data['games'], function ($a, $b) { return $b['timestamp'] <=> $a['timestamp']; });
+        usort($data['upcoming'], function ($a, $b) { return $a['timestamp'] <=> $b['timestamp']; });
     }
     unset($data);
 
@@ -147,60 +164,31 @@ foreach ($CITIES as $cityKey => $cityData) {
         'is_all'  => false,
         'leagues' => $leaguesData
     ];
+
+    // *** THE MEMORY SAVER ***
+    // Wipe the massive raw JSON strings from memory before the next city iteration
+    unset($scheduleResponses);
+    unset($cityUrls);
 }
 
-// 4. Build the master "All Cities" aggregate dataset
-$allLeaguesData = [];
-
-foreach ($CITIES as $cityData) {
-    foreach ($cityData['teams'] as $team) {
-        $leagueKey = strtoupper($team['league']);
-        if (!isset($allLeaguesData[$leagueKey])) {
-            $allLeaguesData[$leagueKey] = [
-                'latest_timestamp' => 0,
-                'games'            => [],
-                'upcoming'         => []
-            ];
-        }
-    }
-}
-
-// Merge the processed games from the database into the "All" dataset
-foreach ($database as $cityKey => $cityProcessed) {
-    foreach ($cityProcessed['leagues'] as $league => $leagueData) {
-        if (!empty($leagueData['games'])) {
-            $allLeaguesData[$league]['games'] = array_merge($allLeaguesData[$league]['games'], $leagueData['games']);
-            if ($leagueData['latest_timestamp'] > $allLeaguesData[$league]['latest_timestamp']) {
-                $allLeaguesData[$league]['latest_timestamp'] = $leagueData['latest_timestamp'];
-            }
-        }
-        if (!empty($leagueData['upcoming'])) {
-            $allLeaguesData[$league]['upcoming'] = array_merge($allLeaguesData[$league]['upcoming'], $leagueData['upcoming']);
-        }
-    }
-}
-
-// Re-sort the global leagues and their combined games
+// Sort global leagues
 uasort($allLeaguesData, function ($a, $b) {
     return $b['latest_timestamp'] <=> $a['latest_timestamp'];
 });
 
 foreach ($allLeaguesData as &$data) {
-    usort($data['games'], function ($a, $b) {
-        return $b['timestamp'] <=> $a['timestamp'];
-    });
-    usort($data['upcoming'], function ($a, $b) {
-        return $a['timestamp'] <=> $b['timestamp'];
-    });
+    usort($data['games'], function ($a, $b) { return $b['timestamp'] <=> $a['timestamp']; });
+    usort($data['upcoming'], function ($a, $b) { return $a['timestamp'] <=> $b['timestamp']; });
 }
 unset($data);
 
-// Attach it to the main database payload
 $database['all'] = [
     'label'   => 'All Cities',
     'is_all'  => true,
     'leagues' => $allLeaguesData
 ];
+
+echo "Building index.php...\n";
 
 // 5. Prepare data for the JS/HTML template
 $jsonDatabase = json_encode($database, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
@@ -374,8 +362,8 @@ header("Cache-Control: public, max-age=3600");
                     const details = `\${game.vsAt} \${game.opponent} (\${game.date_str})`;
                     
                     html += `
-                        <div class="game-card upcoming" title="Raw date: \${escapeHTML(game.date_raw)}">
-                            <strong>[Upcoming] \${escapeHTML(title)}</strong>
+                        <div class="game-card upcoming">
+                            <strong>\${escapeHTML(title)}</strong>
                             <span class="game-details">\${escapeHTML(details)}</span>
                         </div>
                     `;
@@ -395,7 +383,7 @@ header("Cache-Control: public, max-age=3600");
                     if (game.outcome === 'Lost') outcomeClass = ' loss';
                     
                     html += `
-                        <div class="game-card\${outcomeClass}" title="Raw date: \${escapeHTML(game.date_raw)}">
+                        <div class="game-card\${outcomeClass}">
                             <strong>\${escapeHTML(title)}</strong>
                             <span class="game-details">\${escapeHTML(details)}</span>
                         </div>
@@ -424,6 +412,5 @@ if (function_exists('opcache_invalidate')) {
     opcache_invalidate($targetFile, true);
 }
 
-// like Thursday, July 2, 2026 7:32:46 AM CDT
 echo "Successfully generated index.php at " . date('l, F j, Y g:i:s A T') . "\n";
 ?>
