@@ -1,59 +1,72 @@
 <?php
 declare(strict_types=1);
-
 date_default_timezone_set('America/Chicago');
 
-// Ensure this script can run as long as it needs to and isn't memory capped
 set_time_limit(0);
 ini_set('memory_limit', '256M');
 
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/config-15.php';
 require_once __DIR__ . '/api.php';
 
-// 1. Build an array of EVERY team's URL across ALL cities
-$urls = [];
-foreach ($CITIES as $cityKey => $cityData) {
-    foreach ($cityData['teams'] as $i => $team) {
-        $sportInfo = $SPORT_LABELS[$team['league']] ?? null;
-        if (!$sportInfo) {
-            continue;
+$database = [];
+$allLeaguesData = [];
+$oneMonthAgo = strtotime('-1 month');
+
+// Initialize the master "All Cities" array structure upfront
+foreach ($CITIES as $cityData) {
+    foreach ($cityData['teams'] as $team) {
+        $leagueKey = strtoupper($team['league']);
+        if (!isset($allLeaguesData[$leagueKey])) {
+            $allLeaguesData[$leagueKey] = [
+                'latest_timestamp' => 0,
+                'games'            => [],
+                'upcoming'         => []
+            ];
         }
-        $requestKey = "{$cityKey}_{$i}";
-        $urls[$requestKey] = schedule_url($sportInfo['sport'], $team['league'], $team['abbr']);
     }
 }
 
-// 2. Fetch all URLs in parallel
-$scheduleResponses = fetch_json_multi($urls);
+echo "Starting data fetch and compilation...\n";
 
-// 3. Process the results into a structured pre-computed database
-$database = [];
-$oneMonthAgo = strtotime('-1 month');
-
+// Process City by City to keep memory usage flat
 foreach ($CITIES as $cityKey => $cityData) {
-    $leaguesData = [];
+    echo "Processing {$cityData['label']}...\n";
     
-    // Initialize leagues
-    foreach ($cityData['teams'] as $team) {
+    $cityUrls = [];
+    $leaguesData = [];
+
+    // Setup leagues and URLs for just this city
+    foreach ($cityData['teams'] as $i => $team) {
         $leagueKey = strtoupper($team['league']);
         if (!isset($leaguesData[$leagueKey])) {
             $leaguesData[$leagueKey] = [
                 'latest_timestamp' => 0,
-                'games'            => []
+                'games'            => [],
+                'upcoming'         => []
             ];
+        }
+
+        $sportInfo = $SPORT_LABELS[$team['league']] ?? null;
+        if ($sportInfo) {
+            $cityUrls["{$cityKey}_{$i}"] = schedule_url($sportInfo['sport'], $team['league'], $team['abbr']);
         }
     }
 
-    // Process games
+    // Fetch only this city's data in parallel
+    $scheduleResponses = fetch_json_multi($cityUrls);
+
+    // Process games for this city
     foreach ($cityData['teams'] as $i => $team) {
         $leagueKey  = strtoupper($team['league']);
         $sportInfo  = $SPORT_LABELS[$team['league']] ?? null;
         $requestKey = "{$cityKey}_{$i}";
         
-        if (!$sportInfo) continue;
+        if (!$sportInfo || empty($scheduleResponses[$requestKey])) continue;
 
-        $games = last_completed_games($scheduleResponses[$requestKey] ?? null, 2);
+        $rawSchedule = $scheduleResponses[$requestKey];
 
+        // --- Process Last Completed Games ---
+        $games = last_completed_games($rawSchedule, 2);
         foreach ($games as $event) {
             $gameTimestamp = isset($event['date']) ? strtotime($event['date']) : 0;
 
@@ -80,7 +93,7 @@ foreach ($CITIES as $cityKey => $cityData) {
             $outcome = $result['won'] ? 'Won' : 'Lost';
             $vsAt    = $result['is_home'] ? 'vs' : '@';
 
-            $leaguesData[$leagueKey]['games'][] = [
+            $gameRecord = [
                 'timestamp'  => $gameTimestamp,
                 'game_id'    => $event['id'] ?? null,
                 'team_name'  => $team['name'],
@@ -94,23 +107,59 @@ foreach ($CITIES as $cityKey => $cityData) {
                 'opp_score'  => $result['opp_score'],
                 'date_str'   => $relativeDate,
                 'date_iso'   => $gameDateStr,
+                'date_raw'   => $result['date_raw'],
             ];
+
+            $leaguesData[$leagueKey]['games'][] = $gameRecord;
+            $allLeaguesData[$leagueKey]['games'][] = $gameRecord; // Add to global list immediately
 
             if ($gameTimestamp > $leaguesData[$leagueKey]['latest_timestamp']) {
                 $leaguesData[$leagueKey]['latest_timestamp'] = $gameTimestamp;
             }
+            if ($gameTimestamp > $allLeaguesData[$leagueKey]['latest_timestamp']) {
+                $allLeaguesData[$leagueKey]['latest_timestamp'] = $gameTimestamp;
+            }
+        }
+
+        // --- Process Upcoming Game ---
+        $upcomingResult = get_upcoming_game($rawSchedule, $team['abbr']);
+        if ($upcomingResult) {
+            $upcomingTimestamp = strtotime($upcomingResult['date_raw']);
+            $gameDateStr       = date('Y-m-d', $upcomingTimestamp);
+            $todayStr          = date('Y-m-d');
+            $tomorrowStr       = date('Y-m-d', strtotime('tomorrow'));
+
+            if ($gameDateStr === $todayStr) {
+                $relativeUpcoming = 'Today, ' . date('g:i A', $upcomingTimestamp);
+            } elseif ($gameDateStr === $tomorrowStr) {
+                $relativeUpcoming = 'Tomorrow, ' . date('g:i A', $upcomingTimestamp);
+            } else {
+                $relativeUpcoming = date('M j, g:i A', $upcomingTimestamp);
+            }
+
+            $upcomingRecord = [
+                'timestamp' => $upcomingTimestamp,
+                'team_name' => $team['name'],
+                'label'     => $sportInfo['label'],
+                'vsAt'      => $upcomingResult['is_home'] ? 'vs' : '@',
+                'opponent'  => $upcomingResult['opponent'],
+                'date_str'  => $relativeUpcoming,
+                'date_raw'  => $upcomingResult['date_raw'],
+            ];
+
+            $leaguesData[$leagueKey]['upcoming'][] = $upcomingRecord;
+            $allLeaguesData[$leagueKey]['upcoming'][] = $upcomingRecord; // Add to global list immediately
         }
     }
 
-    // Sort leagues by latest game, and games within leagues by newest first
+    // Sort city leagues
     uasort($leaguesData, function ($a, $b) {
         return $b['latest_timestamp'] <=> $a['latest_timestamp'];
     });
 
     foreach ($leaguesData as &$data) {
-        usort($data['games'], function ($a, $b) {
-            return $b['timestamp'] <=> $a['timestamp'];
-        });
+        usort($data['games'], function ($a, $b) { return $b['timestamp'] <=> $a['timestamp']; });
+        usort($data['upcoming'], function ($a, $b) { return $a['timestamp'] <=> $b['timestamp']; });
     }
     unset($data);
 
@@ -119,62 +168,37 @@ foreach ($CITIES as $cityKey => $cityData) {
         'is_all'  => false,
         'leagues' => $leaguesData
     ];
+
+    // *** THE MEMORY SAVER ***
+    // Wipe the massive raw JSON strings from memory before the next city iteration
+    unset($scheduleResponses);
+    unset($cityUrls);
 }
 
-// 4. Build the master "All Cities" aggregate dataset
-$allLeaguesData = [];
-
-// Initialize every league that exists across any city
-foreach ($CITIES as $cityData) {
-    foreach ($cityData['teams'] as $team) {
-        $leagueKey = strtoupper($team['league']);
-        if (!isset($allLeaguesData[$leagueKey])) {
-            $allLeaguesData[$leagueKey] = [
-                'latest_timestamp' => 0,
-                'games'            => []
-            ];
-        }
-    }
-}
-
-// Merge the processed games from the database into the "All" dataset
-foreach ($database as $cityKey => $cityProcessed) {
-    foreach ($cityProcessed['leagues'] as $league => $leagueData) {
-        if (empty($leagueData['games'])) continue;
-        
-        $allLeaguesData[$league]['games'] = array_merge($allLeaguesData[$league]['games'], $leagueData['games']);
-        
-        if ($leagueData['latest_timestamp'] > $allLeaguesData[$league]['latest_timestamp']) {
-            $allLeaguesData[$league]['latest_timestamp'] = $leagueData['latest_timestamp'];
-        }
-    }
-}
-
-// Re-sort the global leagues and their combined games
+// Sort global leagues
 uasort($allLeaguesData, function ($a, $b) {
     return $b['latest_timestamp'] <=> $a['latest_timestamp'];
 });
 
 foreach ($allLeaguesData as &$data) {
-    usort($data['games'], function ($a, $b) {
-        return $b['timestamp'] <=> $a['timestamp'];
-    });
+    usort($data['games'], function ($a, $b) { return $b['timestamp'] <=> $a['timestamp']; });
+    usort($data['upcoming'], function ($a, $b) { return $a['timestamp'] <=> $b['timestamp']; });
 }
 unset($data);
 
-// Attach it to the main database payload
 $database['all'] = [
     'label'   => 'All Cities',
     'is_all'  => true,
     'leagues' => $allLeaguesData
 ];
 
+echo "Building index.php...\n";
 
 // 5. Prepare data for the JS/HTML template
 $jsonDatabase = json_encode($database, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
-$timestamp    = date('Y-m-d H:i:s');
+$timestamp    = date('l, F j, Y g:i:s A T');
 
-// Build the dropdown options, defaulting to Chicago, and appending "All Cities" at the end
+// Build the dropdown options
 $optionsHtml = '';
 foreach ($CITIES as $key => $city) {
     $selected = ($key === 'chicago') ? ' selected' : '';
@@ -185,25 +209,22 @@ $optionsHtml .= '                <option value="all">All Cities</option>' . "\n"
 $summaryBaseUrlJs = json_encode(rtrim($SUMMARY_BASE_URL, '/') . '/');
 
 // 6. Generate the raw code for index2.php
+// 6. Generate the raw code for index.php
 $indexTemplate = <<<HTML
 <?php
-// AUTO-GENERATED BY cron.php at {$timestamp}
-// Force browsers and proxies to discard the cache
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-header("Cache-Control: post-check=0, pre-check=0", false);
-header("Pragma: no-cache");
+// AUTO-GENERATED at {$timestamp}
+header("Cache-Control: public, max-age=3600");
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-<meta http-equiv="Pragma" content="no-cache" />
-<meta http-equiv="Expires" content="0" />
-<title>Local Sports Recap</title>
+<meta name="description" content="Stay updated with the latest sports scores, upcoming game schedules, and team updates across major cities.">
+<title>Fake Sports Fan Report</title>
 <style>
     :root {
+        color-scheme: dark light;
         --bg-color: #f8fafc;
         --card-bg: #ffffff;
         --text-primary: #0f172a;
@@ -211,28 +232,54 @@ header("Pragma: no-cache");
         --border: #e2e8f0;
         --radius: 8px;
         --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        
+        --upcoming-bg: #f0f9ff;
+        --upcoming-border: #bae6fd;
+        --win-bg: #f0fdf4;
+        --win-border: #bbf7d0;
+        --loss-bg: #fef2f2;
+        --loss-border: #fecaca;
     }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #bccbe1;
+            --border: #334155;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.5);
+            
+            --upcoming-bg: #082f49;
+            --upcoming-border: #0369a1;
+            --win-bg: #14532d;
+            --win-border: #166534;
+            --loss-bg: #7f1d1d;
+            --loss-border: #991b1b;
+        }
+    }
+
     body {
         font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         background-color: var(--bg-color);
         color: var(--text-primary);
-        line-height: 1.5;
+        line-height: 1.3;
         margin: 0;
-        padding: 2rem 1rem;
+        padding: 0.75rem 0.75rem 1.5rem;
+        font-size: 15px;
     }
     .container { max-width: 650px; margin: 0 auto; }
-    h1 { font-size: 2.25rem; font-weight: 800; letter-spacing: -0.025em; margin: 0 0 0.5rem 0; }
-    .lead { color: var(--text-secondary); font-size: 1.125rem; margin: 0 0 2rem 0; }
-    
+    h1 { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.025em; margin: 0 0 0.5rem 0; }
+
     .selector-wrapper {
-        background: var(--card-bg); padding: 1.5rem; border-radius: var(--radius);
-        border: 1px solid var(--border); box-shadow: var(--shadow); 
-        margin-bottom: 2.5rem; display: flex; flex-direction: column; gap: 0.5rem;
+        background: var(--card-bg); padding: 0.5rem 0.625rem; border-radius: var(--radius);
+        border: 1px solid var(--border); box-shadow: var(--shadow);
+        margin-bottom: 0.75rem; display: flex; flex-direction: row; align-items: center; gap: 0.5rem;
     }
-    label { font-weight: 600; font-size: 0.875rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
+    label { font-weight: 600; font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
     select {
-        padding: 0.625rem; border-radius: 6px; border: 1px solid var(--border);
-        background-color: var(--card-bg); font-size: 1rem; color: var(--text-primary);
+        padding: 0.3rem 0.4rem; border-radius: 6px; border: 1px solid var(--border);
+        background-color: var(--card-bg); font-size: 0.9rem; color: var(--text-primary);
         width: 100%; cursor: pointer;
     }
     
@@ -288,11 +335,25 @@ header("Pragma: no-cache");
     .team-group {
         margin-bottom: 0.25rem;
     }
-    .game-card {
-        background: var(--card-bg); padding: 1rem 1.25rem; border-radius: var(--radius);
-        border: 1px solid var(--border); box-shadow: var(--shadow); margin-bottom: 0.75rem;
+
+    h2 {
+        font-size: 0.7rem; color: var(--text-secondary); margin: 0.6rem 0 0.3rem 0;
+        text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border);
+        padding-bottom: 0.15rem;
     }
-    .game-card strong { color: var(--text-primary); }
+    h2:first-child { margin-top: 0; }
+    .game-card {
+        background: var(--card-bg); padding: 0.35rem 0.6rem; border-radius: 6px;
+        border: 1px solid var(--border); margin-bottom: 0.3rem;
+        display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 0.4rem;
+        font-size: 0.85rem;
+    }
+    
+    .game-card.upcoming { background: var(--upcoming-bg); border-color: var(--upcoming-border); }
+    .game-card.win { background: var(--win-bg); border-color: var(--win-border); }
+    .game-card.loss { background: var(--loss-bg); border-color: var(--loss-border); }
+    
+    .game-card strong { color: var(--text-primary); font-weight: 600; }
     .game-details { color: var(--text-secondary); }
     .no-results { color: var(--text-secondary); font-style: italic; padding: 0.5rem 0; }
     .last-updated { font-size: 0.8rem; color: var(--text-secondary); text-align: center; margin-top: 3rem; }
@@ -384,14 +445,22 @@ header("Pragma: no-cache");
         font-size: 0.9rem;
         font-style: italic;
         margin: 0 0 0.75rem 0;
+    .no-results { color: var(--text-secondary); font-style: italic; padding: 0.15rem 0; margin: 0 0 0.3rem 0; font-size: 0.85rem; }
+    
+    .last-updated { font-size: 0.7rem; color: var(--text-secondary); text-align: center; margin-top: 1rem; }
+
+    @media (max-width: 480px) {
+        body { padding: 0.5rem 0.5rem 1rem; font-size: 14px; }
+        h1 { font-size: 1.1rem; }
+        .game-card { font-size: 0.8rem; padding: 0.3rem 0.5rem; }
+        h3 { font-size: 0.65rem; }
     }
 </style>
 </head>
 <body>
 
 <main class="container">
-    <h1>Local Sports Recap</h1>
-    <p class="lead">Pick your city to see how your teams did in their last two games.</p>
+    <h1>Fake Sports Fan Report</h1>
 
     <div class="selector-wrapper">
         <label for="city">City</label>
@@ -400,21 +469,20 @@ header("Pragma: no-cache");
         </select>
     </div>
 
-    <div id="results-container">
-        </div>
+    <div id="results-container"></div>
     
     <div class="last-updated">Scores last updated: {$timestamp}</div>
+
 </main>
 
 <script>
-    // Load precomputed PHP data into JS
     const sportsData = {$jsonDatabase};
     const SUMMARY_BASE_URL = {$summaryBaseUrlJs};
+    
     const citySelect = document.getElementById('city');
     const resultsContainer = document.getElementById('results-container');
     const summaryCache = {};
 
-    // Escape HTML function to prevent XSS
     function escapeHTML(str) {
         return String(str).replace(/[&<>'"]/g, 
             tag => ({
@@ -754,10 +822,7 @@ header("Pragma: no-cache");
         resultsContainer.innerHTML = html;
     }
 
-    // Listen for dropdown changes
     citySelect.addEventListener('change', renderResults);
-
-    // Initial render on page load
     renderResults();
 </script>
 
@@ -765,8 +830,8 @@ header("Pragma: no-cache");
 </html>
 HTML;
 
-// 7. Write to index2.php
-$targetFile = __DIR__ . '/index2.php';
+// 7. Write to index.php
+$targetFile = __DIR__ . '/index.php';
 file_put_contents($targetFile, $indexTemplate);
 
 // 8. Bust the PHP OPcache for the newly generated file
@@ -774,4 +839,5 @@ if (function_exists('opcache_invalidate')) {
     opcache_invalidate($targetFile, true);
 }
 
-echo "Successfully generated index2.php at " . date('Y-m-d H:i:s') . "\n";
+echo "Successfully generated index.php at " . date('l, F j, Y g:i:s A T') . "\n";
+?>

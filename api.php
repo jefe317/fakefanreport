@@ -4,14 +4,6 @@
  *
  * Talks to ESPN's public site API using only PHP's built-in cURL
  * extension (no external libraries).
- *
- * Note: the "last N games" feature needs each team's game-by-game
- * results, which the "Specific Team" endpoint from the API list doesn't
- * include (it's mostly roster/franchise info). ESPN's site API exposes
- * that under a /schedule sub-resource on the same team endpoint, so
- * that's what this file calls:
- *
- *   http://site.api.espn.com/apis/site/v2/sports/{sport}/{league}/teams/{abbr}/schedule
  */
 
 define('ESPN_BASE', 'http://site.api.espn.com/apis/site/v2/sports');
@@ -19,9 +11,6 @@ define('ESPN_BASE', 'http://site.api.espn.com/apis/site/v2/sports');
 /**
  * Fetch several JSON API URLs in parallel using curl_multi so a page
  * with several teams doesn't wait on each request one at a time.
- *
- * @param array<int|string,string> $urls key => url
- * @return array<int|string,array|null> same keys => decoded JSON, or null on failure
  */
 function fetch_json_multi(array $urls): array
 {
@@ -101,6 +90,67 @@ function last_completed_games(?array $scheduleData, int $count = 2): array
 }
 
 /**
+ * Find the next upcoming game within the next 2 weeks.
+ */
+function get_upcoming_game(?array $scheduleData, string $teamAbbr): ?array
+{
+    if (!$scheduleData || empty($scheduleData['events'])) {
+        return null;
+    }
+
+    $upcoming = [];
+    $now = time();
+    $twoWeeksFromNow = strtotime('+2 weeks');
+
+    foreach ($scheduleData['events'] as $event) {
+        $competition   = $event['competitions'][0] ?? null;
+        $completedFlag = $competition['status']['type']['completed'] ?? false;
+        
+        // If not completed, it's a future or live game
+        if ($competition && !$completedFlag) {
+            $gameTime = strtotime($event['date'] ?? '+1 year');
+            if ($gameTime > $now && $gameTime <= $twoWeeksFromNow) {
+                $upcoming[] = $event;
+            }
+        }
+    }
+
+    if (empty($upcoming)) {
+        return null;
+    }
+
+    // Sort to find the soonest game
+    usort($upcoming, function ($a, $b) {
+        return strtotime($a['date'] ?? 'now') <=> strtotime($b['date'] ?? 'now');
+    });
+
+    $event = $upcoming[0];
+    $competition = $event['competitions'][0];
+    
+    $team = null;
+    $opponent = null;
+    foreach ($competition['competitors'] as $competitor) {
+        $competitorAbbr = strtolower($competitor['team']['abbreviation'] ?? '');
+        if ($competitorAbbr === strtolower($teamAbbr)) {
+            $team = $competitor;
+        } else {
+            $opponent = $competitor;
+        }
+    }
+
+    if (!$team || !$opponent) {
+        return null;
+    }
+
+    return [
+        'opponent'   => $opponent['team']['displayName'] ?? ($opponent['team']['name'] ?? 'Opponent'),
+        'is_home'    => ($team['homeAway'] ?? '') === 'home',
+        'date_str'   => isset($event['date']) ? date('M j, g:i A', strtotime($event['date'])) : '',
+        'date_raw'   => $event['date'] ?? '', // Passed through for debugging
+    ];
+}
+
+/**
  * Turn a single ESPN "event" into a simple result array from the given
  * team's point of view. Returns null if the shape isn't what we expect.
  */
@@ -142,6 +192,7 @@ function summarize_game(array $event, string $teamAbbr): ?array
         'opponent'   => $opponent['team']['displayName'] ?? ($opponent['team']['name'] ?? 'Opponent'),
         'is_home'    => ($team['homeAway'] ?? '') === 'home',
         'date'       => isset($event['date']) ? date('M j', strtotime($event['date'])) : '',
+        'date_raw'   => $event['date'] ?? '', // Passed through for debugging
     ];
 }
 
@@ -156,3 +207,4 @@ function extract_score($score)
     }
     return $score;
 }
+?>
