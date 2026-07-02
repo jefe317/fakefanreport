@@ -95,7 +95,10 @@ foreach ($CITIES as $cityKey => $cityData) {
 
             $gameRecord = [
                 'timestamp'  => $gameTimestamp,
+                'game_id'    => $event['id'] ?? null,
                 'team_name'  => $team['name'],
+                'abbr'       => $team['abbr'],
+                'league_key' => $team['league'],
                 'label'      => $sportInfo['label'],
                 'outcome'    => $outcome,
                 'vsAt'       => $vsAt,
@@ -103,6 +106,7 @@ foreach ($CITIES as $cityKey => $cityData) {
                 'team_score' => $result['team_score'],
                 'opp_score'  => $result['opp_score'],
                 'date_str'   => $relativeDate,
+                'date_iso'   => $gameDateStr,
                 'date_raw'   => $result['date_raw'],
             ];
 
@@ -202,6 +206,9 @@ foreach ($CITIES as $key => $city) {
 }
 $optionsHtml .= '                <option value="all">All Cities</option>' . "\n";
 
+$summaryBaseUrlJs = json_encode(rtrim($SUMMARY_BASE_URL, '/') . '/');
+
+// 6. Generate the raw code for index2.php
 // 6. Generate the raw code for index.php
 $indexTemplate = <<<HTML
 <?php
@@ -275,6 +282,59 @@ header("Cache-Control: public, max-age=3600");
         background-color: var(--card-bg); font-size: 0.9rem; color: var(--text-primary);
         width: 100%; cursor: pointer;
     }
+    
+    h2 { font-size: 1.75rem; border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; margin: 2rem 0 1rem 0; }
+    h3 { font-size: 1.125rem; color: var(--text-secondary); margin: 0; text-transform: uppercase; letter-spacing: 0.05em; }
+    .section-head {
+        position: relative;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-rows: auto auto;
+        align-items: center;
+        column-gap: 1rem;
+        row-gap: 0.5rem;
+        margin: 1.5rem 0 0.75rem 0;
+    }
+    .section-head--team {
+        margin: 0.75rem 0 0.5rem 0;
+    }
+    .section-head h4 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        text-transform: none;
+        letter-spacing: normal;
+    }
+    .section-head > h3,
+    .section-head > h4 {
+        grid-column: 1;
+        grid-row: 1;
+        margin: 0;
+        padding-right: 8rem;
+    }
+    .section-head > .ai-accordion--head:not([open]) {
+        grid-column: 2;
+        grid-row: 1;
+        justify-self: end;
+    }
+    .section-head > .ai-accordion--head[open] {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        width: 100%;
+    }
+    .section-head > .ai-accordion--head[open] > summary {
+        position: absolute;
+        top: 0;
+        right: 0;
+    }
+    .section-head > .ai-accordion--head[open] > .ai-accordion-body,
+    .section-head > .ai-accordion--head[open] > .ai-sources {
+        width: 100%;
+    }
+    .team-group {
+        margin-bottom: 0.25rem;
+    }
 
     h2 {
         font-size: 0.7rem; color: var(--text-secondary); margin: 0.6rem 0 0.3rem 0;
@@ -295,6 +355,96 @@ header("Cache-Control: public, max-age=3600");
     
     .game-card strong { color: var(--text-primary); font-weight: 600; }
     .game-details { color: var(--text-secondary); }
+    .no-results { color: var(--text-secondary); font-style: italic; padding: 0.5rem 0; }
+    .last-updated { font-size: 0.8rem; color: var(--text-secondary); text-align: center; margin-top: 3rem; }
+
+    .report-date {
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+        margin: -0.5rem 0 1.25rem 0;
+    }
+
+    .ai-section {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--border);
+    }
+    .ai-accordion > summary {
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        list-style: none;
+    }
+    .ai-accordion > summary::-webkit-details-marker { display: none; }
+    .ai-accordion > summary::before { content: '▸ '; }
+    .ai-accordion[open] > summary::before { content: '▾ '; }
+    .ai-accordion-body {
+        padding: 0.5rem 0 0;
+        color: var(--text-primary);
+        font-size: 0.925rem;
+        line-height: 1.55;
+    }
+    .ai-sources {
+        margin-top: 0.5rem;
+        padding-top: 0.5rem;
+        border-top: 1px dashed var(--border);
+    }
+    .ai-sources > summary {
+        padding: 0.5rem 0.75rem;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        list-style: none;
+    }
+    .ai-sources > summary::-webkit-details-marker { display: none; }
+    .ai-sources-list { padding: 0.5rem 0 0.75rem; margin: 0; list-style: none; }
+    .ai-sources-list li { margin-bottom: 0.5rem; }
+    .ai-sources-list li:last-child { margin-bottom: 0; }
+    .ai-sources-list a.source-link {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.625rem;
+        padding: 0.625rem 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--card-bg);
+        color: var(--text-primary);
+        text-decoration: none;
+        line-height: 1.4;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .ai-sources-list a.source-link:hover {
+        border-color: #94a3b8;
+        box-shadow: var(--shadow);
+        text-decoration: none;
+    }
+    .ai-sources-list .source-link-label {
+        flex: 1;
+        font-size: 0.875rem;
+    }
+    .ai-sources-list .source-link-label::after {
+        content: ' ↗';
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+    }
+    .source-badge {
+        flex-shrink: 0;
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        padding: 0.15rem 0.35rem;
+        border-radius: 4px;
+        text-transform: uppercase;
+    }
+    .source-espn { background: #dc2626; color: #fff; }
+    .source-reddit { background: #ff4500; color: #fff; }
+    .ai-error {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        font-style: italic;
+        margin: 0 0 0.75rem 0;
     .no-results { color: var(--text-secondary); font-style: italic; padding: 0.15rem 0; margin: 0 0 0.3rem 0; font-size: 0.85rem; }
     
     .last-updated { font-size: 0.7rem; color: var(--text-secondary); text-align: center; margin-top: 1rem; }
@@ -327,9 +477,11 @@ header("Cache-Control: public, max-age=3600");
 
 <script>
     const sportsData = {$jsonDatabase};
+    const SUMMARY_BASE_URL = {$summaryBaseUrlJs};
     
     const citySelect = document.getElementById('city');
     const resultsContainer = document.getElementById('results-container');
+    const summaryCache = {};
 
     function escapeHTML(str) {
         return String(str).replace(/[&<>'"]/g, 
@@ -343,51 +495,326 @@ header("Cache-Control: public, max-age=3600");
         );
     }
 
-    function renderResults() {
+    function formatReportDate(dateStr) {
+        if (!dateStr) return '';
+        const parts = dateStr.split('-');
+        if (parts.length !== 3) return dateStr;
+        const date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    }
+
+    async function fetchCitySummary(citySlug) {
+        if (citySlug === 'all') return null;
+        if (Object.prototype.hasOwnProperty.call(summaryCache, citySlug)) {
+            return summaryCache[citySlug];
+        }
+        try {
+            const response = await fetch(SUMMARY_BASE_URL + encodeURIComponent(citySlug) + '.json');
+            if (!response.ok) throw new Error('fetch failed');
+            summaryCache[citySlug] = await response.json();
+        } catch (err) {
+            summaryCache[citySlug] = null;
+        }
+        return summaryCache[citySlug];
+    }
+
+    function getLeagueBlock(summary, leagueUpper) {
+        if (!summary || !summary.leagues) return null;
+        return summary.leagues[leagueUpper.toLowerCase()] || null;
+    }
+
+    function getTeamBlock(summary, leagueUpper, abbr) {
+        const league = getLeagueBlock(summary, leagueUpper);
+        if (!league || !league.teams) return null;
+        return league.teams[abbr] || null;
+    }
+
+    function normalizeMatchText(value) {
+        return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+    function findGameReport(teamBlock, game, usedGameIds) {
+        if (!teamBlock || !Array.isArray(teamBlock.recentGames)) return null;
+
+        const candidates = teamBlock.recentGames.filter(entry => !entry.error);
+
+        function takeMatch(match) {
+            if (!match) return null;
+            const id = match.gameId || (match.date + '|' + match.opponent + '|' + match.result);
+            if (usedGameIds.has(id)) return null;
+            usedGameIds.add(id);
+            return match;
+        }
+
+        if (game.game_id) {
+            const byId = candidates.find(entry => String(entry.gameId) === String(game.game_id));
+            const matched = takeMatch(byId);
+            if (matched) return matched;
+        }
+
+        const gameOpp = normalizeMatchText(game.opponent);
+        const byDateOpp = candidates.find(entry =>
+            entry.date === game.date_iso &&
+            (normalizeMatchText(entry.opponent) === gameOpp ||
+                normalizeMatchText(entry.opponent).includes(gameOpp) ||
+                gameOpp.includes(normalizeMatchText(entry.opponent)))
+        );
+        const matchedOpp = takeMatch(byDateOpp);
+        if (matchedOpp) return matchedOpp;
+
+        const resultKey = game.team_score + '-' + game.opp_score;
+        const byDateScore = candidates.find(entry =>
+            entry.date === game.date_iso && entry.result === resultKey
+        );
+        const matchedScore = takeMatch(byDateScore);
+        if (matchedScore) return matchedScore;
+
+        const byDateOnly = candidates.find(entry => entry.date === game.date_iso);
+        return takeMatch(byDateOnly);
+    }
+
+    function articleSourceUrl(article) {
+        if (article.url) return article.url;
+        if (article.id) return 'https://www.espn.com/espn/story/_/id/' + encodeURIComponent(article.id);
+        return null;
+    }
+
+    function buildSourcesList(articles, redditPosts) {
+        const items = [];
+        (articles || []).forEach(article => {
+            if (!article || !article.headline) return;
+            items.push({
+                type: 'espn',
+                label: article.headline,
+                url: articleSourceUrl(article),
+            });
+        });
+        (redditPosts || []).forEach(post => {
+            if (!post || !post.title) return;
+            items.push({
+                type: 'reddit',
+                label: post.title,
+                url: post.permalink || null,
+            });
+        });
+        if (items.length === 0) return '';
+        let html = '<ul class="ai-sources-list">';
+        items.forEach(item => {
+            const badge = item.type === 'reddit'
+                ? '<span class="source-badge source-reddit">Reddit</span>'
+                : '<span class="source-badge source-espn">ESPN</span>';
+            const label = escapeHTML(item.label);
+            if (item.url) {
+                html += '<li><a class="source-link" href="' + escapeHTML(item.url)
+                    + '" target="_blank" rel="noopener noreferrer">'
+                    + badge + '<span class="source-link-label">' + label + '</span></a></li>';
+            } else {
+                html += '<li class="source-link">' + badge
+                    + '<span class="source-link-label">' + label + '</span></li>';
+            }
+        });
+        html += '</ul>';
+        return html;
+    }
+
+    function buildReportAccordion(title, bodyText, articles, redditPosts, extraClass) {
+        if (!bodyText) return '';
+        const cls = 'ai-accordion' + (extraClass ? ' ' + extraClass : '');
+        let html = '<details class="' + cls + '">';
+        html += '<summary>' + escapeHTML(title) + '</summary>';
+        html += '<div class="ai-accordion-body">' + escapeHTML(bodyText) + '</div>';
+        const sources = buildSourcesList(articles, redditPosts);
+        if (sources) {
+            html += '<details class="ai-sources"><summary>Sources</summary>' + sources + '</details>';
+        }
+        html += '</details>';
+        return html;
+    }
+
+    function groupGamesByTeam(games) {
+        const groups = [];
+        const seen = new Map();
+        games.forEach(game => {
+            if (!seen.has(game.abbr)) {
+                const group = { abbr: game.abbr, team_name: game.team_name, games: [] };
+                seen.set(game.abbr, group);
+                groups.push(group);
+            }
+            seen.get(game.abbr).games.push(game);
+        });
+        return groups;
+    }
+
+    function espnGamesForTeam(espnLeagueData, abbr) {
+        return (espnLeagueData?.games || []).filter(game => game.abbr === abbr);
+    }
+
+    function teamHasAiContent(teamBlock) {
+        if (!teamBlock || teamBlock.error) return false;
+        if (teamBlock.newsSummary) return true;
+        return (teamBlock.recentGames || []).some(entry => entry.summary && !entry.error);
+    }
+
+    function formatAiGameLine(gameReport) {
+        if (gameReport.matchup) return gameReport.matchup;
+        const parts = [];
+        if (gameReport.opponent) parts.push('vs ' + gameReport.opponent);
+        if (gameReport.result) parts.push(gameReport.result);
+        if (gameReport.date) parts.push(gameReport.date);
+        return parts.join(' — ') || 'Recent game';
+    }
+
+    function aiGameKey(gameReport) {
+        return String(gameReport.gameId || (gameReport.date + '|' + gameReport.opponent + '|' + gameReport.result));
+    }
+
+    function renderAiGameCard(gameReport) {
+        let html = '<div class="game-card">';
+        html += '<strong>' + escapeHTML(formatAiGameLine(gameReport)) + '</strong>';
+        html += '<div class="ai-section">';
+        html += buildReportAccordion('Game recap', gameReport.summary);
+        html += '</div></div>';
+        return html;
+    }
+
+    function renderTeamSection(teamName, teamBlock, espnGames) {
+        let html = '';
+
+        let teamToggle = '';
+        if (teamBlock && teamBlock.newsSummary) {
+            teamToggle = buildReportAccordion(
+                'Team roundup',
+                teamBlock.newsSummary,
+                teamBlock.sourceArticles,
+                teamBlock.sourceRedditPosts,
+                'ai-accordion--head'
+            );
+        }
+
+        html += '<div class="team-group">';
+        html += '<div class="section-head section-head--team">';
+        html += '<h4>' + escapeHTML(teamName) + '</h4>';
+        html += teamToggle;
+        html += '</div>';
+
+        const usedGameIds = new Set();
+
+        espnGames.forEach(game => {
+            const title = game.team_name + ' ' + game.outcome + ' ' + game.label;
+            const details = '— ' + game.team_score + '-' + game.opp_score + ' '
+                + game.vsAt + ' ' + game.opponent + ' (' + game.date_str + ')';
+
+            html += '<div class="game-card">';
+            html += '<strong>' + escapeHTML(title) + '</strong>';
+            html += '<span class="game-details">' + escapeHTML(details) + '</span>';
+
+            if (teamBlock) {
+                const gameReport = findGameReport(teamBlock, game, usedGameIds);
+                if (gameReport && gameReport.summary) {
+                    html += '<div class="ai-section">';
+                    html += buildReportAccordion('Game recap', gameReport.summary);
+                    html += '</div>';
+                }
+            }
+
+            html += '</div>';
+        });
+
+        if (teamBlock) {
+            (teamBlock.recentGames || []).forEach(gameReport => {
+                if (!gameReport.summary || gameReport.error) return;
+                const key = aiGameKey(gameReport);
+                if (usedGameIds.has(key)) return;
+                usedGameIds.add(key);
+                html += renderAiGameCard(gameReport);
+            });
+        }
+
+        html += '</div>';
+        return html;
+    }
+
+    async function renderResults() {
         const cityId = citySelect.value;
         resultsContainer.innerHTML = ''; 
 
         if (!cityId || !sportsData[cityId]) return;
 
         const cityData = sportsData[cityId];
+        const showAi = cityId !== 'all';
+        let summary = null;
+
+        if (showAi) {
+            summary = await fetchCitySummary(cityId);
+        }
+
         let html = '';
 
-        for (const [league, data] of Object.entries(cityData.leagues)) {
-            html += `<h2>\${escapeHTML(league)}</h2>`;
-            
-            // Upcoming Games
-            if (data.upcoming.length > 0) {
-                data.upcoming.forEach(game => {
-                    const title = `\${game.team_name} \${game.label}`;
-                    const details = `\${game.vsAt} \${game.opponent} (\${game.date_str})`;
-                    
-                    html += `
-                        <div class="game-card upcoming">
-                            <strong>\${escapeHTML(title)}</strong>
-                            <span class="game-details">\${escapeHTML(details)}</span>
-                        </div>
-                    `;
-                });
-            }
+        // Omit the <h2> city name if the 'All Cities' option is selected
+        if (!cityData.is_all) {
+            html += '<h2>' + escapeHTML(cityData.label) + '</h2>';
+        }
 
-            // Completed Games
-            if (data.games.length === 0 && data.upcoming.length === 0) {
-                html += `<p class="no-results">No recent or upcoming results available</p>`;
-            } else {
-                data.games.forEach(game => {
-                    const title = `\${game.team_name} \${game.outcome} \${game.label}`;
-                    const details = `— \${game.team_score}-\${game.opp_score} \${game.vsAt} \${game.opponent} (\${game.date_str})`;
-                    
-                    let outcomeClass = '';
-                    if (game.outcome === 'Won') outcomeClass = ' win';
-                    if (game.outcome === 'Lost') outcomeClass = ' loss';
-                    
-                    html += `
-                        <div class="game-card\${outcomeClass}">
-                            <strong>\${escapeHTML(title)}</strong>
-                            <span class="game-details">\${escapeHTML(details)}</span>
-                        </div>
-                    `;
+        if (showAi && summary && summary.date) {
+            html += '<p class="report-date">AI reports for ' + escapeHTML(formatReportDate(summary.date)) + '</p>';
+        }
+
+        if (showAi && summary && summary.leagues) {
+            for (const [leagueKey, leagueBlock] of Object.entries(summary.leagues)) {
+                const league = leagueKey.toUpperCase();
+                const espnLeague = cityData.leagues[league] || { games: [] };
+
+                let leagueToggle = '';
+                if (leagueBlock.newsSummary) {
+                    leagueToggle = buildReportAccordion(
+                        'League roundup',
+                        leagueBlock.newsSummary,
+                        leagueBlock.sourceArticles,
+                        leagueBlock.sourceRedditPosts,
+                        'ai-accordion--head'
+                    );
+                }
+
+                const teams = leagueBlock.teams || {};
+                const hasTeams = Object.values(teams).some(teamHasAiContent);
+                const hasScores = espnLeague.games.length > 0;
+                if (!leagueToggle && !hasTeams && !hasScores) {
+                    continue;
+                }
+
+                html += '<div class="section-head">';
+                html += '<h3>' + escapeHTML(league) + '</h3>';
+                html += leagueToggle;
+                html += '</div>';
+
+                let renderedTeam = false;
+                for (const [abbr, teamBlock] of Object.entries(teams)) {
+                    const espnGames = espnGamesForTeam(espnLeague, abbr);
+                    if (!teamHasAiContent(teamBlock) && espnGames.length === 0) {
+                        continue;
+                    }
+                    renderedTeam = true;
+                    const teamName = teamBlock.displayName || teamBlock.name || abbr;
+                    html += renderTeamSection(teamName, teamBlock, espnGames);
+                }
+
+                if (!renderedTeam && !hasScores) {
+                    html += '<p class="no-results">No recent results available</p>';
+                }
+            }
+        } else {
+            for (const [league, data] of Object.entries(cityData.leagues)) {
+                html += '<div class="section-head">';
+                html += '<h3>' + escapeHTML(league) + '</h3>';
+                html += '</div>';
+
+                if (data.games.length === 0) {
+                    html += '<p class="no-results">No recent results available</p>';
+                    continue;
+                }
+
+                groupGamesByTeam(data.games).forEach(group => {
+                    html += renderTeamSection(group.team_name, null, group.games);
                 });
             }
         }
