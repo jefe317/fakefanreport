@@ -101,13 +101,26 @@ foreach ($CITIES as $cityKey => $cityData) {
         // --- Process Upcoming Game ---
         $upcomingResult = get_upcoming_game($scheduleResponses[$requestKey] ?? null, $team['abbr']);
         if ($upcomingResult) {
+            $upcomingTimestamp = strtotime($upcomingResult['date_raw']);
+            $gameDateStr       = date('Y-m-d', $upcomingTimestamp);
+            $todayStr          = date('Y-m-d');
+            $tomorrowStr       = date('Y-m-d', strtotime('tomorrow'));
+
+            if ($gameDateStr === $todayStr) {
+                $relativeUpcoming = 'Today, ' . date('g:i A', $upcomingTimestamp);
+            } elseif ($gameDateStr === $tomorrowStr) {
+                $relativeUpcoming = 'Tomorrow, ' . date('g:i A', $upcomingTimestamp);
+            } else {
+                $relativeUpcoming = date('M j, g:i A', $upcomingTimestamp);
+            }
+
             $leaguesData[$leagueKey]['upcoming'][] = [
-                'timestamp' => strtotime($upcomingResult['date_raw']),
+                'timestamp' => $upcomingTimestamp,
                 'team_name' => $team['name'],
                 'label'     => $sportInfo['label'],
                 'vsAt'      => $upcomingResult['is_home'] ? 'vs' : '@',
                 'opponent'  => $upcomingResult['opponent'],
-                'date_str'  => $upcomingResult['date_str'],
+                'date_str'  => $relativeUpcoming,
                 'date_raw'  => $upcomingResult['date_raw'],
             ];
         }
@@ -205,18 +218,18 @@ $optionsHtml .= '                <option value="all">All Cities</option>' . "\n"
 $indexTemplate = <<<HTML
 <?php
 // AUTO-GENERATED at {$timestamp}
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-header("Cache-Control: post-check=0, pre-check=0", false);
-header("Pragma: no-cache");
+header("Cache-Control: public, max-age=3600");
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Stay updated with the latest sports scores, upcoming game schedules, and team updates across major cities.">
 <title>Fake Sports Fan Report</title>
 <style>
     :root {
+        color-scheme: dark light;
         --bg-color: #f8fafc;
         --card-bg: #ffffff;
         --text-primary: #0f172a;
@@ -224,8 +237,33 @@ header("Pragma: no-cache");
         --border: #e2e8f0;
         --radius: 8px;
         --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        
         --upcoming-bg: #f0f9ff;
+        --upcoming-border: #bae6fd;
+        --win-bg: #f0fdf4;
+        --win-border: #bbf7d0;
+        --loss-bg: #fef2f2;
+        --loss-border: #fecaca;
     }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #bccbe1;
+            --border: #334155;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.5);
+            
+            --upcoming-bg: #082f49;
+            --upcoming-border: #0369a1;
+            --win-bg: #14532d;
+            --win-border: #166534;
+            --loss-bg: #7f1d1d;
+            --loss-border: #991b1b;
+        }
+    }
+
     body {
         font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         background-color: var(--bg-color);
@@ -262,7 +300,11 @@ header("Pragma: no-cache");
         display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 0.4rem;
         font-size: 0.85rem;
     }
-    .game-card.upcoming { background: var(--upcoming-bg); border-color: #bae6fd; }
+    
+    .game-card.upcoming { background: var(--upcoming-bg); border-color: var(--upcoming-border); }
+    .game-card.win { background: var(--win-bg); border-color: var(--win-border); }
+    .game-card.loss { background: var(--loss-bg); border-color: var(--loss-border); }
+    
     .game-card strong { color: var(--text-primary); font-weight: 600; }
     .game-details { color: var(--text-secondary); }
     .no-results { color: var(--text-secondary); font-style: italic; padding: 0.15rem 0; margin: 0 0 0.3rem 0; font-size: 0.85rem; }
@@ -348,8 +390,12 @@ header("Pragma: no-cache");
                     const title = `\${game.team_name} \${game.outcome} \${game.label}`;
                     const details = `— \${game.team_score}-\${game.opp_score} \${game.vsAt} \${game.opponent} (\${game.date_str})`;
                     
+                    let outcomeClass = '';
+                    if (game.outcome === 'Won') outcomeClass = ' win';
+                    if (game.outcome === 'Lost') outcomeClass = ' loss';
+                    
                     html += `
-                        <div class="game-card" title="Raw date: \${escapeHTML(game.date_raw)}">
+                        <div class="game-card\${outcomeClass}" title="Raw date: \${escapeHTML(game.date_raw)}">
                             <strong>\${escapeHTML(title)}</strong>
                             <span class="game-details">\${escapeHTML(details)}</span>
                         </div>
