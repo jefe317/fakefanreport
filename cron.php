@@ -5,7 +5,7 @@ date_default_timezone_set('America/Chicago');
 set_time_limit(0);
 ini_set('memory_limit', '256M');
 
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/config-15.php';
 require_once __DIR__ . '/api.php';
 
 $database = [];
