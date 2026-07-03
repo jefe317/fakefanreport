@@ -90,7 +90,13 @@ foreach ($CITIES as $cityKey => $cityData) {
                 $relativeDate = date('M j', $gameTimestamp);
             }
 
-            $outcome = $result['won'] ? 'Won' : 'Lost';
+            $outcomeLabels = [
+                'win'       => 'Won',
+                'loss'      => 'Lost',
+                'tie'       => 'Tied',
+                'postponed' => 'Postponed',
+            ];
+            $outcome = $outcomeLabels[$result['status']] ?? 'Final';
             $vsAt    = $result['is_home'] ? 'vs' : '@';
 
             $gameRecord = [
@@ -232,6 +238,8 @@ header("Cache-Control: public, max-age=3600");
         --win-border: #bbf7d0;
         --loss-bg: #fef2f2;
         --loss-border: #fecaca;
+        --neutral-bg: #fefce8;
+        --neutral-border: #fde68a;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -249,6 +257,8 @@ header("Cache-Control: public, max-age=3600");
             --win-border: #166534;
             --loss-bg: #7f1d1d;
             --loss-border: #991b1b;
+            --neutral-bg: #422006;
+            --neutral-border: #a16207;
         }
     }
 
@@ -292,6 +302,8 @@ header("Cache-Control: public, max-age=3600");
     .game-card.upcoming { background: var(--upcoming-bg); border-color: var(--upcoming-border); }
     .game-card.win { background: var(--win-bg); border-color: var(--win-border); }
     .game-card.loss { background: var(--loss-bg); border-color: var(--loss-border); }
+    .game-card.tie,
+    .game-card.postponed { background: var(--neutral-bg); border-color: var(--neutral-border); }
     
     .game-card strong { color: var(--text-primary); font-weight: 600; }
     .game-details { color: var(--text-secondary); }
@@ -376,11 +388,14 @@ header("Cache-Control: public, max-age=3600");
             } else {
                 data.games.forEach(game => {
                     const title = `\${game.team_name} \${game.outcome} \${game.label}`;
-                    const details = `— \${game.team_score}-\${game.opp_score} \${game.vsAt} \${game.opponent} (\${game.date_str})`;
+                    const scorePart = game.outcome === 'Postponed' ? '' : `\${game.team_score}-\${game.opp_score} `;
+                    const details = `— \${scorePart}\${game.vsAt} \${game.opponent} (\${game.date_str})`;
                     
                     let outcomeClass = '';
                     if (game.outcome === 'Won') outcomeClass = ' win';
                     if (game.outcome === 'Lost') outcomeClass = ' loss';
+                    if (game.outcome === 'Tied') outcomeClass = ' tie';
+                    if (game.outcome === 'Postponed') outcomeClass = ' postponed';
                     
                     html += `
                         <div class="game-card\${outcomeClass}">

@@ -151,8 +151,20 @@ function get_upcoming_game(?array $scheduleData, string $teamAbbr): ?array
 }
 
 /**
+ * Statuses ESPN uses for games that finished without a normal win/loss
+ * (postponed/suspended/canceled). last_completed_games() already filters
+ * to status.type.completed === true, but a suspended-and-later-resumed
+ * game can still show one of these names on a "completed" event, so we
+ * check explicitly rather than assuming completed always means a clean
+ * final score.
+ */
+const NON_FINAL_STATUS_NAMES = ['STATUS_POSTPONED', 'STATUS_CANCELED', 'STATUS_SUSPENDED', 'STATUS_DELAYED'];
+
+/**
  * Turn a single ESPN "event" into a simple result array from the given
  * team's point of view. Returns null if the shape isn't what we expect.
+ *
+ * 'status' is one of: 'win', 'loss', 'tie', 'postponed'.
  */
 function summarize_game(array $event, string $teamAbbr): ?array
 {
@@ -179,14 +191,24 @@ function summarize_game(array $event, string $teamAbbr): ?array
     $teamScore = extract_score($team['score'] ?? null);
     $oppScore  = extract_score($opponent['score'] ?? null);
 
-    if (isset($team['winner'])) {
-        $won = (bool) $team['winner'];
+    $statusName = strtoupper($competition['status']['type']['name'] ?? '');
+
+    if (in_array($statusName, NON_FINAL_STATUS_NAMES, true)) {
+        $status = 'postponed';
+    } elseif (isset($team['winner']) && isset($opponent['winner']) && !$team['winner'] && !$opponent['winner']) {
+        // ESPN marks both sides winner:false for a tie (e.g. NFL/NHL ties).
+        $status = 'tie';
+    } elseif (isset($team['winner'])) {
+        $status = $team['winner'] ? 'win' : 'loss';
+    } elseif ($teamScore !== null && $oppScore !== null && (float) $teamScore === (float) $oppScore) {
+        $status = 'tie';
     } else {
-        $won = ((float) $teamScore) > ((float) $oppScore);
+        $status = ((float) $teamScore > (float) $oppScore) ? 'win' : 'loss';
     }
 
     return [
-        'won'        => $won,
+        'status'     => $status,
+        'won'        => $status === 'win', // kept for backward compatibility
         'team_score' => $teamScore ?? '?',
         'opp_score'  => $oppScore ?? '?',
         'opponent'   => $opponent['team']['displayName'] ?? ($opponent['team']['name'] ?? 'Opponent'),
