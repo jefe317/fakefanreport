@@ -219,7 +219,7 @@ header("Cache-Control: public, max-age=3600");
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Stay updated with the latest sports scores, upcoming game schedules, and team updates across major cities.">
+<meta name="description" content="Catch up on your local pro teams in seconds. See recent game results and upcoming games over the next two weeks—all in one place.">
 <title>Fake Sports Fan Report</title>
 <style>
     :root {
@@ -311,6 +311,14 @@ header("Cache-Control: public, max-age=3600");
     
     .last-updated { font-size: 0.7rem; color: var(--text-secondary); text-align: center; margin-top: 1rem; }
 
+    .stale-banner {
+        background: var(--neutral-bg); border: 1px solid var(--neutral-border);
+        color: var(--text-primary); border-radius: var(--radius);
+        padding: 0.5rem 0.7rem; margin-bottom: 0.75rem; font-size: 0.85rem;
+    }
+    .stale-banner a { color: var(--text-primary); font-weight: 600; }
+    .stale-banner a:hover { text-decoration: none; }
+
     @media (max-width: 480px) {
         body { padding: 0.5rem 0.5rem 1rem; font-size: 14px; }
         h1 { font-size: 1.1rem; }
@@ -323,6 +331,10 @@ header("Cache-Control: public, max-age=3600");
 
 <main class="container">
     <h1>Fake Sports Fan Report</h1>
+
+    <div id="stale-banner" class="stale-banner" hidden>
+        New data is available. <a href="#" id="stale-refresh-link">Refresh to see the latest scores</a>.
+    </div>
 
     <div class="selector-wrapper">
         <label for="city">City</label>
@@ -342,6 +354,45 @@ header("Cache-Control: public, max-age=3600");
     
     const citySelect = document.getElementById('city');
     const resultsContainer = document.getElementById('results-container');
+    const CITY_STORAGE_KEY = 'sportsfan_selected_city';
+
+    function getUrlCity() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('city');
+    }
+
+    function getStoredCity() {
+        try {
+            return window.localStorage.getItem(CITY_STORAGE_KEY);
+        } catch (e) {
+            // localStorage unavailable (private browsing, disabled, etc.) — fail quietly
+            return null;
+        }
+    }
+
+    function storeCity(cityId) {
+        try {
+            window.localStorage.setItem(CITY_STORAGE_KEY, cityId);
+        } catch (e) {
+            // ignore write failures
+        }
+    }
+
+    function updateUrl(cityId) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('city', cityId);
+        window.history.replaceState({}, '', url);
+    }
+
+    function resolveInitialCity() {
+        const urlCity = getUrlCity();
+        if (urlCity && sportsData[urlCity]) return urlCity;
+
+        const storedCity = getStoredCity();
+        if (storedCity && sportsData[storedCity]) return storedCity;
+
+        return citySelect.value; // server-rendered default (Chicago)
+    }
 
     function escapeHTML(str) {
         return String(str).replace(/[&<>'"]/g, 
@@ -410,8 +461,108 @@ header("Cache-Control: public, max-age=3600");
         resultsContainer.innerHTML = html;
     }
 
-    citySelect.addEventListener('change', renderResults);
+    citySelect.addEventListener('change', () => {
+        storeCity(citySelect.value);
+        updateUrl(citySelect.value);
+        renderResults();
+    });
+
+    citySelect.value = resolveInitialCity();
+    updateUrl(citySelect.value);
     renderResults();
+
+    // --- Auto-refresh if the page hasn't been loaded since the most recent 2am Central ---
+    const PAGE_LOAD_STORAGE_KEY = 'sportsfan_page_loaded_at';
+    const pageLoadedAt = Date.now();
+
+    try {
+        window.localStorage.setItem(PAGE_LOAD_STORAGE_KEY, String(pageLoadedAt));
+    } catch (e) {
+        // localStorage unavailable — staleness check below still works via pageLoadedAt
+    }
+
+    // Returns what the wall-clock time in America/Chicago reads for a given
+    // instant, as {year, month, day, hour, minute, second}. Using Intl here
+    // (rather than trusting the visitor's own local timezone) means this is
+    // correct no matter where the browser is physically located, and it
+    // automatically accounts for CST/CDT daylight saving changes.
+    function getChicagoParts(date) {
+        const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/Chicago',
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+            hour12: false
+        }).formatToParts(date);
+        const map = {};
+        parts.forEach(p => { map[p.type] = p.value; });
+        // hour12: false can render midnight as "24" in some browsers — normalize to 0
+        if (map.hour === '24') map.hour = '0';
+        return {
+            year: Number(map.year), month: Number(map.month), day: Number(map.day),
+            hour: Number(map.hour), minute: Number(map.minute), second: Number(map.second)
+        };
+    }
+
+    // Computes the timestamp (as a real UTC instant) of the most recent 2am
+    // Central relative to "now". Works by taking today's Chicago calendar date,
+    // asking what UTC instant "that date at 2am Chicago time" corresponds to,
+    // and stepping back a day if that instant hasn't happened yet.
+    function mostRecent2amCentral() {
+        const now = new Date();
+        const chicagoNow = getChicagoParts(now);
+
+        function chicagoWallClockToUtc(year, month, day, hour) {
+            // Find the UTC instant whose Chicago wall-clock reads year-month-day hour:00:00.
+            // Start with a naive guess treating the wall clock as UTC, then correct for offset.
+            const guess = Date.UTC(year, month - 1, day, hour, 0, 0);
+            const guessChicagoParts = getChicagoParts(new Date(guess));
+            const guessAsUtc = Date.UTC(
+                guessChicagoParts.year, guessChicagoParts.month - 1, guessChicagoParts.day,
+                guessChicagoParts.hour, guessChicagoParts.minute, guessChicagoParts.second
+            );
+            const offsetMs = guess - guessAsUtc;
+            return guess + offsetMs;
+        }
+
+        const todayAt2amUtc = chicagoWallClockToUtc(chicagoNow.year, chicagoNow.month, chicagoNow.day, 2);
+
+        if (todayAt2amUtc <= now.getTime()) {
+            return todayAt2amUtc;
+        }
+        // It's not yet 2am Chicago time today — the most recent 2am was yesterday.
+        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const chicagoYesterday = getChicagoParts(yesterday);
+        return chicagoWallClockToUtc(chicagoYesterday.year, chicagoYesterday.month, chicagoYesterday.day, 2);
+    }
+
+    const staleBanner = document.getElementById('stale-banner');
+    const staleRefreshLink = document.getElementById('stale-refresh-link');
+
+    function showStaleBanner() {
+        staleBanner.hidden = false;
+    }
+
+    function checkStaleness() {
+        if (pageLoadedAt < mostRecent2amCentral()) {
+            showStaleBanner();
+        }
+    }
+
+    staleRefreshLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.location.reload();
+    });
+
+    // Catches the common case: laptop closed/reopened, or tab switched back to
+    // after a long time. Browsers throttle timers in background tabs, but the
+    // visibilitychange event still fires reliably when a tab becomes active again.
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') checkStaleness();
+    });
+
+    // Catches a tab left open and visible/foregrounded continuously.
+    setInterval(checkStaleness, 5 * 60 * 1000); // check every 5 minutes
+
 </script>
 
 </body>
