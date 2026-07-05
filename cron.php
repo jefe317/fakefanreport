@@ -66,6 +66,15 @@ foreach ($games as $event) {
     $result = summarize_game($event, 'usa');
     if (!$result) continue;
 
+    // Grab the official tournament stage (e.g., "FIFA World Cup, Round of 16")
+    $altNote = $event['competitions'][0]['altGameNote'] ?? '';
+    $stageLabel = 'World Cup';
+    if ($altNote) {
+        // Format to read cleanly like "World Cup Round of 16" or "World Cup Group D"
+        $stageLabel = str_replace('FIFA World Cup, ', 'World Cup ', $altNote);
+        $stageLabel = str_replace('FIFA ', '', $stageLabel);
+    }
+
     $gameDateStr   = date('Y-m-d', $gameTimestamp);
     $todayStr      = date('Y-m-d');
     $yesterdayStr  = date('Y-m-d', strtotime('yesterday'));
@@ -93,7 +102,7 @@ foreach ($games as $event) {
     $fifaGames[] = [
         'timestamp'  => $gameTimestamp,
         'team_name'  => 'USA',
-        'label'      => 'World Cup',
+        'label'      => $stageLabel,
         'outcome'    => $outcome,
         'vsAt'       => $vsAt,
         'opponent'   => $result['opponent'],
@@ -111,6 +120,21 @@ foreach ($games as $event) {
 // Process USA upcoming game
 $upcomingResult = get_upcoming_game($usaData, 'usa');
 if ($upcomingResult) {
+    // Find the raw event in $usaData that matches this date to extract the specific stage note
+    $altNote = '';
+    foreach ($usaData['events'] as $evt) {
+        if (isset($evt['date']) && $evt['date'] === $upcomingResult['date_raw']) {
+            $altNote = $evt['competitions'][0]['altGameNote'] ?? '';
+            break;
+        }
+    }
+    
+    $stageLabel = 'World Cup';
+    if ($altNote) {
+        $stageLabel = str_replace('FIFA World Cup, ', 'World Cup ', $altNote);
+        $stageLabel = str_replace('FIFA ', '', $stageLabel);
+    }
+
     $upcomingTimestamp = strtotime($upcomingResult['date_raw']);
     $gameDateStr       = date('Y-m-d', $upcomingTimestamp);
     $todayStr          = date('Y-m-d');
@@ -127,7 +151,7 @@ if ($upcomingResult) {
     $fifaUpcoming[] = [
         'timestamp' => $upcomingTimestamp,
         'team_name' => 'USA',
-        'label'     => 'World Cup',
+        'label'     => $stageLabel,
         'vsAt'      => $upcomingResult['is_home'] ? 'vs' : '@',
         'opponent'  => $upcomingResult['opponent'],
         'date_str'  => $relativeUpcoming,
@@ -160,7 +184,7 @@ foreach ($CITIES as $cityKey => $cityData) {
         if ($sportInfo) {
             $url = schedule_url($sportInfo['sport'], $team['league'], $team['abbr']);
             $cityUrls["{$cityKey}_{$i}"] = $url;
-            $allRequestedUrls[] = $url;
+            $allRequestedUrls[] = $url; 
         }
     }
 
@@ -225,7 +249,7 @@ foreach ($CITIES as $cityKey => $cityData) {
             ];
 
             $leaguesData[$leagueKey]['games'][] = $gameRecord;
-            $allLeaguesData[$leagueKey]['games'][] = $gameRecord;
+            $allLeaguesData[$leagueKey]['games'][] = $gameRecord; 
 
             if ($gameTimestamp > $leaguesData[$leagueKey]['latest_timestamp']) {
                 $leaguesData[$leagueKey]['latest_timestamp'] = $gameTimestamp;
@@ -262,11 +286,11 @@ foreach ($CITIES as $cityKey => $cityData) {
             ];
 
             $leaguesData[$leagueKey]['upcoming'][] = $upcomingRecord;
-            $allLeaguesData[$leagueKey]['upcoming'][] = $upcomingRecord;
+            $allLeaguesData[$leagueKey]['upcoming'][] = $upcomingRecord; 
         }
     }
 
-    // Add USA World Cup if games exist
+    // Add USA World Cup to local city output if games exist
     if (!empty($fifaGames) || !empty($fifaUpcoming)) {
         $leaguesData['FIFA'] = [
             'latest_timestamp' => $fifaLatestTimestamp,
@@ -323,7 +347,7 @@ $database['all'] = [
     'leagues' => $allLeaguesData
 ];
 
-// --- Major Events ---
+// --- Major Events (Super Bowl, NBA Finals, World Cup, etc.) ---
 echo "Fetching major events...\n";
 
 $majorEventUrls = [];
@@ -331,7 +355,7 @@ foreach ($MAJOR_EVENTS as $i => $evt) {
     $datesRange = major_event_dates_range($evt['window_months'], $evt['spans_new_year']);
     $url = scoreboard_url($evt['sport'], $evt['league'], $datesRange);
     $majorEventUrls[$i] = $url;
-    $allRequestedUrls[] = $url;
+    $allRequestedUrls[] = $url; 
 }
 
 $majorEventResponses = fetch_json_multi($majorEventUrls);
@@ -345,7 +369,7 @@ foreach ($MAJOR_EVENTS as $i => $evt) {
         $evt['requires_postseason_flag']
     );
     if (!$championshipEvent) {
-        continue;
+        continue; 
     }
 
     $summary = summarize_championship_game($championshipEvent, $evt['label']);
@@ -395,7 +419,7 @@ $database['_all_teams'] = $allTeamsOut;
 
 echo "Building index.php...\n";
 
-// Prepare data for the JS/HTML template
+// 5. Prepare data for the JS/HTML template
 $jsonDatabase = json_encode($database, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
 $timestamp    = date('l, F j, Y g:i:s A T');
 
@@ -408,10 +432,10 @@ foreach ($CITIES as $key => $city) {
 $optionsHtml .= '                <option value="all">All Cities</option>' . "\n";
 $optionsHtml .= '                <option value="__custom__">Customize&hellip;</option>' . "\n";
 
-// Build an HTML comment listing every API URL used
+// Build an HTML comment listing every API URL used 
 $urlCommentsHtml = "\n";
 
-// Generate the raw code for index.php
+// 6. Generate the raw code for index.php
 $indexTemplate = <<<HTML
 <?php
 // AUTO-GENERATED at {$timestamp}
@@ -423,7 +447,7 @@ header("Cache-Control: public, max-age=3600");
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="Catch up on your local pro teams in seconds. See recent game results and upcoming games over the next two weeks—all in one place.">
-<title>Fake Sports Fan Report</title>
+<title>Casual Fan Sports Report</title>
 <style>
     :root {
         color-scheme: dark light;
@@ -607,7 +631,7 @@ header("Cache-Control: public, max-age=3600");
 <body>
 
 <main class="container">
-    <h1>Fake Sports Fan Report</h1>
+    <h1>Casual Fan Sports Report</h1>
 
     <div id="stale-banner" class="stale-banner" hidden>
         New data is available. <a href="#" id="stale-refresh-link">Refresh to see the latest scores</a>.
