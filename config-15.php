@@ -18,6 +18,101 @@ $SPORT_LABELS = [
     'nhl' => ['sport' => 'hockey',     'label' => 'Hockey'],
 ];
 
+/**
+ * Major national/international "everyone watches this one" events —
+ * not tied to any single city. Each entry describes where to look on
+ * ESPN's scoreboard for that league/competition and which title
+ * keywords mark the actual championship game (vs. an earlier round
+ * that happens to still be completed and in the same window).
+ *
+ * 'window_months' is a list of month numbers (1-12) this championship
+ * is typically played in. cron.php turns this into an actual
+ * YYYYMMDD-YYYYMMDD date range for the scoreboard fetch — without a
+ * range, ESPN's scoreboard endpoint only returns *today's* games, so a
+ * plain "any completed game right now" search can wander into a
+ * regular-season game outside of finals week and mislabel it as the
+ * championship. Being generous here (a full month or two either side)
+ * is safe: the postseason/keyword checks in find_championship_game()
+ * still do the real narrowing.
+ *
+ * 'spans_new_year' handles championships whose window crosses into
+ * January of the following year relative to when the season "started"
+ * (e.g. Super Bowl in Feb belongs to the season that began the
+ * previous fall) — cron.php uses this to pick the right year for each
+ * month in the window.
+ *
+ * 'requires_postseason_flag' controls whether ESPN's season.type/slug
+ * postseason check is required. Traditional US leagues (NFL/NBA/MLB/NHL)
+ * always set this true. Single-elimination international tournaments
+ * (World Cup, Champions League) don't reliably expose the same
+ * season-type semantics in ESPN's soccer payloads, so for those we
+ * instead rely purely on keyword matching against "final" — every
+ * match in these competitions is inherently part of a knockout/group
+ * stage, so the keyword is the meaningful signal, not the season type.
+ */
+$MAJOR_EVENTS = [
+    [
+        'key'                      => 'nfl_superbowl',
+        'label'                    => 'Super Bowl',
+        'sport'                    => 'football',
+        'league'                   => 'nfl',
+        'window_months'            => [1, 2],
+        'spans_new_year'           => true,
+        'requires_postseason_flag' => true,
+        'keywords'                 => ['super bowl'],
+    ],
+    [
+        'key'                      => 'nba_finals',
+        'label'                    => 'NBA Finals',
+        'sport'                    => 'basketball',
+        'league'                   => 'nba',
+        'window_months'            => [5, 6],
+        'spans_new_year'           => false,
+        'requires_postseason_flag' => true,
+        'keywords'                 => ['nba finals', 'finals'],
+    ],
+    [
+        'key'                      => 'mlb_worldseries',
+        'label'                    => 'World Series',
+        'sport'                    => 'baseball',
+        'league'                   => 'mlb',
+        'window_months'            => [10, 11],
+        'spans_new_year'           => false,
+        'requires_postseason_flag' => true,
+        'keywords'                 => ['world series'],
+    ],
+    [
+        'key'                      => 'nhl_stanleycup',
+        'label'                    => 'Stanley Cup Final',
+        'sport'                    => 'hockey',
+        'league'                   => 'nhl',
+        'window_months'            => [5, 6, 7],
+        'spans_new_year'           => false,
+        'requires_postseason_flag' => true,
+        'keywords'                 => ['stanley cup'],
+    ],
+    [
+        'key'                      => 'fifa_worldcup',
+        'label'                    => 'FIFA World Cup Final',
+        'sport'                    => 'soccer',
+        'league'                   => 'fifa.world',
+        'window_months'            => [6, 7],
+        'spans_new_year'           => false,
+        'requires_postseason_flag' => false,
+        'keywords'                 => ['world cup final', 'final'],
+    ],
+    [
+        'key'                      => 'uefa_championsleague',
+        'label'                    => 'UEFA Champions League Final',
+        'sport'                    => 'soccer',
+        'league'                   => 'uefa.champions',
+        'window_months'            => [5, 6],
+        'spans_new_year'           => false,
+        'requires_postseason_flag' => false,
+        'keywords'                 => ['champions league final', 'final'],
+    ],
+];
+
 $CITIES = [
     'newyork_newengland' => [
         'label' => 'New York & New England',
