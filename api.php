@@ -12,7 +12,7 @@ define('ESPN_BASE', 'http://site.api.espn.com/apis/site/v2/sports');
  * Fetch several JSON API URLs in parallel using curl_multi so a page
  * with several teams doesn't wait on each request one at a time.
  */
-function fetch_json_multi(array $urls): array
+function fetch_json_multi(array $urls, ?callable $log = null): array
 {
     if (empty($urls)) {
         return [];
@@ -29,6 +29,12 @@ function fetch_json_multi(array $urls): array
             CURLOPT_CONNECTTIMEOUT => 5,
             CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; LocalSportsSite/1.0)',
             CURLOPT_HTTPHEADER     => ['Accept: application/json'],
+            // Follow http->https (and any other) redirects. ESPN's endpoints
+            // are requested over http:// in a few places; if the server ever
+            // 301/302s to https, without this the response would be a redirect
+            // body with a non-200 code and get discarded as a failure.
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS      => 3,
         ]);
         curl_multi_add_handle($mh, $ch);
         $handles[$key] = $ch;
@@ -46,7 +52,23 @@ function fetch_json_multi(array $urls): array
     foreach ($handles as $key => $ch) {
         $body     = curl_multi_getcontent($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $results[$key] = ($body && $httpCode === 200) ? json_decode($body, true) : null;
+        $errNo    = curl_errno($ch);
+        $errMsg   = curl_error($ch);
+        $decoded  = ($body && $httpCode === 200) ? json_decode($body, true) : null;
+        $results[$key] = $decoded;
+
+        if ($log) {
+            $log(sprintf(
+                'fetch key=%s http=%d bodyBytes=%d curlErr=%d%s decodedOk=%s',
+                $key,
+                $httpCode,
+                is_string($body) ? strlen($body) : 0,
+                $errNo,
+                $errMsg ? " (\"$errMsg\")" : '',
+                $decoded === null ? 'NO' : 'yes'
+            ));
+        }
+
         curl_multi_remove_handle($mh, $ch);
         curl_close($ch);
     }
