@@ -64,6 +64,7 @@ function build_live_step_list(): array
         ['key' => 'live_mlb', 'label' => 'MLB Live', 'url' => 'http://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?limit=100'],
         ['key' => 'live_nhl', 'label' => 'NHL Live', 'url' => 'http://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?limit=100'],
         ['key' => 'live_nba', 'label' => 'NBA Live', 'url' => 'http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?limit=100'],
+        ['key' => 'live_wnba', 'label' => 'WNBA Live', 'url' => 'http://site.api.espn.com/apis/site/v2/sports/basketball/wnba/scoreboard?limit=100'],
         ['key' => 'live_fifa', 'label' => 'FIFA Live', 'url' => 'http://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=100'],
     ];
 }
@@ -424,6 +425,7 @@ function apply_live_scoreboards(array &$database, array $liveRawByKey, array $CI
         'live_mlb'  => 'MLB',
         'live_nhl'  => 'NHL',
         'live_nba'  => 'NBA',
+        'live_wnba' => 'WNBA',
         'live_fifa' => 'FIFA',
     ];
 
@@ -588,7 +590,7 @@ function render_index_html(array $database, array $CITIES, string $timestamp): s
 
     $optionsHtml = '';
     foreach ($CITIES as $key => $city) {
-        $selected = ($key === 'chicago') ? ' selected' : '';
+        $selected = ($key === 'chicago_wisconsin') ? ' selected' : '';
         $optionsHtml .= '                <option value="' . htmlspecialchars($key) . '"' . $selected . '>' . htmlspecialchars($city['label']) . '</option>' . "\n";
     }
     $optionsHtml .= '                <option value="all">All Cities</option>' . "\n";
@@ -1115,30 +1117,30 @@ header("Cache-Control: public, max-age=300");
 
             html += `<h2>\${escapeHTML(league)}</h2>`;
 
-            // 1. Live Games
-            if (hasLive) {
-                data.live.forEach(game => {
-                    const title = `\${game.team_name} — \${game.live_status}`;
-                    const details = `\${game.team_score}-\${game.opp_score} \${game.vsAt} \${game.opponent} (\${game.progress})`;
-                    
+            // 1. Upcoming Games
+            if (hasUpcoming) {
+                data.upcoming.forEach(game => {
+                    const title = `\${game.team_name} \${game.label}`;
+                    const details = `\${game.vsAt} \${game.opponent} (\${game.date_str})`;
+
                     html += `
-                        <div class="game-card live">
-                            <span class="live-indicator">● LIVE</span>
+                        <div class="game-card upcoming">
                             <strong>\${escapeHTML(title)}</strong>
                             <span class="game-details">\${escapeHTML(details)}</span>
                         </div>
                     `;
                 });
             }
-            
-            // 2. Upcoming Games
-            if (hasUpcoming) {
-                data.upcoming.forEach(game => {
-                    const title = `\${game.team_name} \${game.label}`;
-                    const details = `\${game.vsAt} \${game.opponent} (\${game.date_str})`;
-                    
+
+            // 2. Live Games
+            if (hasLive) {
+                data.live.forEach(game => {
+                    const title = `\${game.team_name} — \${game.live_status}`;
+                    const details = `\${game.team_score}-\${game.opp_score} \${game.vsAt} \${game.opponent} (\${game.progress})`;
+
                     html += `
-                        <div class="game-card upcoming">
+                        <div class="game-card live">
+                            <span class="live-indicator">● LIVE</span>
                             <strong>\${escapeHTML(title)}</strong>
                             <span class="game-details">\${escapeHTML(details)}</span>
                         </div>

@@ -2,6 +2,8 @@
 /**
  * generate.php
  *
+ * todo: add all major sports like wnba, college bball for march madness
+ * todo: remove "sport" part of Brewers Won Baseball?
  * Interactive replacement for running cron.php blind on a schedule.
  */
 declare(strict_types=1);
@@ -10,7 +12,7 @@ ini_set('memory_limit', '256M');
 
 require_once __DIR__ . '/builder-core.php';
 
-define('GENERATE_SECRET', 'lolyeahright');
+define('GENERATE_SECRET', '8JccoC7_9rrR@.UePf!!4_.6r@ds7kT');
 if (defined('GENERATE_SECRET') && ($_GET['key'] ?? '') !== GENERATE_SECRET) {
     http_response_code(403);
     exit('Forbidden');
@@ -23,7 +25,7 @@ define('BUILD_DIR', __DIR__ . '/tmp_builds');
 // automatically for any level=live request, and for anything when ?debug=1
 // is present. To turn it off, set LIVE_DEBUG to false below (or delete the
 // live-debug.log file to clear it — it's append-only).
-define('LIVE_DEBUG', true);
+define('LIVE_DEBUG', false);
 define('LIVE_DEBUG_FILE', __DIR__ . '/live-debug.log');
 
 function live_debug_enabled(): bool {
