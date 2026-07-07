@@ -129,12 +129,20 @@ function schedule_url(string $sport, string $league, string $abbr): string
  * a postseason window via a date range (YYYYMMDD-YYYYMMDD) so we don't
  * have to guess week numbers. A wide range is fine — the scoreboard
  * endpoint just returns whatever games fall inside it.
+ *
+ * $extraParams lets a caller add query args. This matters for college
+ * basketball: its scoreboard endpoint returns HTTP 404 for a dates
+ * range unless 'groups=50' (all Division I) is also present, so those
+ * major-event entries pass ['groups' => '50'].
  */
-function scoreboard_url(string $sport, string $league, ?string $datesRange = null): string
+function scoreboard_url(string $sport, string $league, ?string $datesRange = null, array $extraParams = []): string
 {
     $url = ESPN_BASE . "/{$sport}/{$league}/scoreboard?limit=100";
     if ($datesRange) {
         $url .= "&dates={$datesRange}";
+    }
+    foreach ($extraParams as $k => $v) {
+        $url .= '&' . urlencode((string) $k) . '=' . urlencode((string) $v);
     }
     return $url;
 }

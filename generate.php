@@ -1,10 +1,6 @@
 <?php
 /**
  * generate.php
- *
- * todo: add all major sports like wnba, college bball for march madness
- * todo: remove "sport" part of Brewers Won Baseball?
- * Interactive replacement for running cron.php blind on a schedule.
  */
 declare(strict_types=1);
 date_default_timezone_set('America/Chicago');
@@ -12,7 +8,10 @@ ini_set('memory_limit', '256M');
 
 require_once __DIR__ . '/builder-core.php';
 
-define('GENERATE_SECRET', 'a');
+// The authorization key lives in secret.php (untracked) so it isn't
+// accidentally committed or shared. Copy secret.example.php to secret.php.
+require_once __DIR__ . '/secret.php';
+
 if (defined('GENERATE_SECRET') && ($_GET['key'] ?? '') !== GENERATE_SECRET) {
     http_response_code(403);
     exit('Forbidden');
@@ -296,8 +295,15 @@ if ($action === 'finalize') {
     $html      = render_index_html($database, $CITIES, $timestamp);
 
     $targetFile = __DIR__ . '/index.php';
-    write_index_file($html, $targetFile);
+    $wrote      = write_index_file($html, $targetFile);
     @unlink(build_file_path($token));
+
+    if (!$wrote) {
+        json_response([
+            'ok'    => false,
+            'error' => "Build finished but writing {$targetFile} failed. Check that the web server can write to that path (file permissions, or the file is locked).",
+        ]);
+    }
 
     json_response([
         'ok'           => true,
@@ -378,11 +384,14 @@ if ($action === 'cron_run') {
     $timestamp = date('l, F j, Y g:i:s A T');
     $html      = render_index_html($database, $CITIES, $timestamp);
 
-    write_index_file($html, __DIR__ . '/index.php');
+    $wrote = write_index_file($html, __DIR__ . '/index.php');
     @unlink(build_file_path($token));
 
     echo "Cron build ($level) complete at {$timestamp}.\n";
     echo "Failed requests: {$failedCount}\n";
+    if (!$wrote) {
+        echo "WARNING: could not write index.php — check that the web server can write to " . __DIR__ . ".\n";
+    }
     exit;
 }
 

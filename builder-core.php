@@ -32,7 +32,11 @@ function build_step_list(array $CITIES, array $MAJOR_EVENTS, array $SPORT_LABELS
                 'key'        => "{$cityKey}_{$i}",
                 'type'       => 'team',
                 'label'      => "Fetching {$cityData['label']}: {$team['name']} (" . strtoupper($team['league']) . ') schedule',
-                'url'        => schedule_url($sportInfo['sport'], $team['league'], $team['abbr']),
+                // College teams need ESPN's numeric team id in the URL (the
+                // abbreviation-based schedule route is unreliable for them);
+                // 'abbr' is still what game-matching compares against. Pro
+                // teams have no 'id' and keep using their abbreviation.
+                'url'        => schedule_url($sportInfo['sport'], $sportInfo['slug'] ?? $team['league'], $team['id'] ?? $team['abbr']),
                 'city_key'   => $cityKey,
                 'team_index' => $i,
             ];
@@ -46,7 +50,7 @@ function build_step_list(array $CITIES, array $MAJOR_EVENTS, array $SPORT_LABELS
             'key'         => "major_{$i}",
             'type'        => 'major_event',
             'label'       => "Fetching {$evt['label']}",
-            'url'         => scoreboard_url($evt['sport'], $evt['league'], $datesRange),
+            'url'         => scoreboard_url($evt['sport'], $evt['league'], $datesRange, $evt['scoreboard_params'] ?? []),
             'event_index' => $i,
         ];
     }
@@ -65,6 +69,11 @@ function build_live_step_list(): array
         ['key' => 'live_nhl', 'label' => 'NHL Live', 'url' => 'http://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?limit=100'],
         ['key' => 'live_nba', 'label' => 'NBA Live', 'url' => 'http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?limit=100'],
         ['key' => 'live_wnba', 'label' => 'WNBA Live', 'url' => 'http://site.api.espn.com/apis/site/v2/sports/basketball/wnba/scoreboard?limit=100'],
+        // College scoreboards are large and default to a featured subset, so
+        // groups=50 (all D-I) plus a high limit ensures a tracked school's
+        // game is present. These only matter in-season (Nov–Apr).
+        ['key' => 'live_ncaam', 'label' => 'NCAAM Live', 'url' => 'http://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?groups=50&limit=400'],
+        ['key' => 'live_ncaaw', 'label' => 'NCAAW Live', 'url' => 'http://site.api.espn.com/apis/site/v2/sports/basketball/womens-college-basketball/scoreboard?groups=50&limit=400'],
         ['key' => 'live_fifa', 'label' => 'FIFA Live', 'url' => 'http://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=100'],
     ];
 }
@@ -426,6 +435,8 @@ function apply_live_scoreboards(array &$database, array $liveRawByKey, array $CI
         'live_nhl'  => 'NHL',
         'live_nba'  => 'NBA',
         'live_wnba' => 'WNBA',
+        'live_ncaam' => 'NCAAM',
+        'live_ncaaw' => 'NCAAW',
         'live_fifa' => 'FIFA',
     ];
 
@@ -766,11 +777,12 @@ header("Cache-Control: public, max-age=300");
         border-radius: 6px; padding: 0.35rem 0.5rem;
     }
     .league-group-header {
+        position: sticky; top: 0; z-index: 1; background: var(--card-bg);
         font-weight: 700; font-size: 0.68rem; color: var(--text-secondary);
-        text-transform: uppercase; letter-spacing: 0.06em; margin: 0.5rem 0 0.2rem 0;
-        padding-bottom: 0.15rem; border-bottom: 1px solid var(--border);
+        text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 0.2rem 0;
+        padding: 0.4rem 0 0.15rem 0; border-bottom: 1px solid var(--border);
     }
-    .league-group-header:first-child { margin-top: 0; }
+    .league-group-header:first-child { padding-top: 0.1rem; }
     .league-group-header.hidden { display: none; }
     .team-check-item {
         display: flex; align-items: center; gap: 0.4rem; padding: 0.2rem 0;
@@ -992,6 +1004,7 @@ header("Cache-Control: public, max-age=300");
             input.addEventListener('change', onTeamCheckboxChange);
         });
         updateLeagueHeaderVisibility();
+        updateSelectAllShownLabel();
     }
 
     function updateLeagueHeaderVisibility() {
@@ -1013,6 +1026,7 @@ header("Cache-Control: public, max-age=300");
 
     function onTeamCheckboxChange() {
         storeCustomTeams(getCheckedKeysFromDom());
+        updateSelectAllShownLabel();
         if (citySelect.value === CUSTOM_VALUE) renderResults();
     }
 
@@ -1025,12 +1039,27 @@ header("Cache-Control: public, max-age=300");
             item.classList.toggle('hidden', !visible);
         });
         updateLeagueHeaderVisibility();
+        updateSelectAllShownLabel();
     }
 
-    function selectAllShown() {
-        const shownInputs = Array.from(teamChecklist.querySelectorAll('.team-check-item:not(.hidden) input[type="checkbox"]'));
-        shownInputs.forEach(input => { input.checked = true; });
+    function getShownInputs() {
+        return Array.from(teamChecklist.querySelectorAll('.team-check-item:not(.hidden) input[type="checkbox"]'));
+    }
+
+    function allShownChecked() {
+        const shown = getShownInputs();
+        return shown.length > 0 && shown.every(input => input.checked);
+    }
+
+    function updateSelectAllShownLabel() {
+        selectAllShownBtn.textContent = allShownChecked() ? 'Deselect all shown' : 'Select all shown';
+    }
+
+    function toggleAllShown() {
+        const shouldCheck = !allShownChecked();
+        getShownInputs().forEach(input => { input.checked = shouldCheck; });
         storeCustomTeams(getCheckedKeysFromDom());
+        updateSelectAllShownLabel();
         if (citySelect.value === CUSTOM_VALUE) renderResults();
     }
 
@@ -1196,7 +1225,7 @@ header("Cache-Control: public, max-age=300");
     });
 
     teamSearch.addEventListener('input', filterChecklist);
-    selectAllShownBtn.addEventListener('click', selectAllShown);
+    selectAllShownBtn.addEventListener('click', toggleAllShown);
     toggleCustomizeEditorBtn.addEventListener('click', () => setEditorCollapsed(!isEditorCollapsed()));
 
     citySelect.value = resolveInitialCity();
@@ -1292,10 +1321,19 @@ HTML;
     return $indexTemplate;
 }
 
-function write_index_file(string $html, string $targetFile): void
+/**
+ * Write the generated index.php. Returns false if the write failed (e.g.
+ * the web server user can't write to the directory, or the file is locked
+ * on Windows) so callers can report it instead of falsely claiming success.
+ */
+function write_index_file(string $html, string $targetFile): bool
 {
-    file_put_contents($targetFile, $html);
+    $bytes = @file_put_contents($targetFile, $html);
+    if ($bytes === false) {
+        return false;
+    }
     if (function_exists('opcache_invalidate')) {
         opcache_invalidate($targetFile, true);
     }
+    return true;
 }

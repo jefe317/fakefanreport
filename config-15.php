@@ -12,11 +12,16 @@
  */
 
 $SPORT_LABELS = [
-    'nfl' => ['sport' => 'football',   'label' => 'Football'],
-    'nba' => ['sport' => 'basketball', 'label' => 'Basketball'],
+    'nfl'  => ['sport' => 'football',   'label' => 'Football'],
+    'nba'  => ['sport' => 'basketball', 'label' => 'Basketball'],
     'wnba' => ['sport' => 'basketball', 'label' => 'Basketball'],
-    'mlb' => ['sport' => 'baseball',   'label' => 'Baseball'],
-    'nhl' => ['sport' => 'hockey',     'label' => 'Hockey'],
+    'mlb'  => ['sport' => 'baseball',   'label' => 'Baseball'],
+    'nhl'  => ['sport' => 'hockey',     'label' => 'Hockey'],
+    // College basketball: the ESPN URL slug differs from the short league
+    // key we use as the section header, so these carry an explicit 'slug'
+    // (schedule_url uses it via a fallback in build_step_list()).
+    'ncaam' => ['sport' => 'basketball', 'slug' => 'mens-college-basketball',   'label' => 'Basketball'],
+    'ncaaw' => ['sport' => 'basketball', 'slug' => 'womens-college-basketball', 'label' => 'Basketball'],
 ];
 
 /**
@@ -83,6 +88,30 @@ $MAJOR_EVENTS = [
         'keywords'                 => ['wnba finals', 'finals'],
     ],
     [
+        'key'                      => 'ncaam_championship',
+        'label'                    => "NCAA Men's Championship",
+        'sport'                    => 'basketball',
+        'league'                   => 'mens-college-basketball',
+        'window_months'            => [3, 4],
+        'spans_new_year'           => false,
+        'requires_postseason_flag' => true,
+        'keywords'                 => ['national championship'],
+        // College scoreboard 404s on a dates range without groups=50.
+        'scoreboard_params'        => ['groups' => '50'],
+    ],
+    [
+        'key'                      => 'ncaaw_championship',
+        'label'                    => "NCAA Women's Championship",
+        'sport'                    => 'basketball',
+        'league'                   => 'womens-college-basketball',
+        'window_months'            => [3, 4],
+        'spans_new_year'           => false,
+        'requires_postseason_flag' => true,
+        'keywords'                 => ['national championship'],
+        // College scoreboard 404s on a dates range without groups=50.
+        'scoreboard_params'        => ['groups' => '50'],
+    ],
+    [
         'key'                      => 'mlb_worldseries',
         'label'                    => 'World Series',
         'sport'                    => 'baseball',
@@ -145,6 +174,8 @@ $CITIES = [
             ['league' => 'nhl', 'name' => 'Devils',    'abbr' => 'nj'],
             ['league' => 'wnba', 'name' => 'Liberty',   'abbr' => 'ny'],
             ['league' => 'wnba', 'name' => 'Sun',       'abbr' => 'con'],
+            ['league' => 'ncaam', 'name' => 'UConn',    'abbr' => 'conn', 'id' => '41'],
+            ['league' => 'ncaaw', 'name' => 'UConn',    'abbr' => 'conn', 'id' => '41'],
         ],
     ],
     'mid_atlantic' => [
@@ -164,6 +195,12 @@ $CITIES = [
             ['league' => 'mlb', 'name' => 'Nationals',  'abbr' => 'wsh'],
             ['league' => 'nhl', 'name' => 'Capitals',   'abbr' => 'wsh'],
             ['league' => 'wnba', 'name' => 'Mystics',    'abbr' => 'wsh'],
+            ['league' => 'ncaam', 'name' => 'Villanova',  'abbr' => 'vill', 'id' => '222'],
+            ['league' => 'ncaaw', 'name' => 'Villanova',  'abbr' => 'vill', 'id' => '222'],
+            ['league' => 'ncaam', 'name' => 'Georgetown', 'abbr' => 'gtwn', 'id' => '46'],
+            ['league' => 'ncaaw', 'name' => 'Georgetown', 'abbr' => 'gtwn', 'id' => '46'],
+            ['league' => 'ncaam', 'name' => 'Maryland',   'abbr' => 'md', 'id' => '120'],
+            ['league' => 'ncaaw', 'name' => 'Maryland',   'abbr' => 'md', 'id' => '120'],
         ],
     ],
     'southeast' => [
@@ -178,6 +215,14 @@ $CITIES = [
             ['league' => 'nfl', 'name' => 'Titans',     'abbr' => 'ten'],
             ['league' => 'nhl', 'name' => 'Predators',  'abbr' => 'nsh'],
             ['league' => 'wnba', 'name' => 'Dream',      'abbr' => 'atl'],
+            ['league' => 'ncaam', 'name' => 'Duke',           'abbr' => 'duke', 'id' => '150'],
+            ['league' => 'ncaaw', 'name' => 'Duke',           'abbr' => 'duke', 'id' => '150'],
+            ['league' => 'ncaam', 'name' => 'North Carolina', 'abbr' => 'unc', 'id' => '153'],
+            ['league' => 'ncaaw', 'name' => 'North Carolina', 'abbr' => 'unc', 'id' => '153'],
+            ['league' => 'ncaam', 'name' => 'Tennessee',      'abbr' => 'tenn', 'id' => '2633'],
+            ['league' => 'ncaaw', 'name' => 'Tennessee',      'abbr' => 'tenn', 'id' => '2633'],
+            ['league' => 'ncaam', 'name' => 'South Carolina', 'abbr' => 'sc', 'id' => '2579'],
+            ['league' => 'ncaaw', 'name' => 'South Carolina', 'abbr' => 'sc', 'id' => '2579'],
         ],
     ],
     'florida' => [
@@ -192,6 +237,10 @@ $CITIES = [
             ['league' => 'nfl', 'name' => 'Buccaneers', 'abbr' => 'tb'],
             ['league' => 'mlb', 'name' => 'Rays',       'abbr' => 'tb'],
             ['league' => 'nhl', 'name' => 'Lightning',  'abbr' => 'tb'],
+            ['league' => 'ncaam', 'name' => 'Florida',  'abbr' => 'fla', 'id' => '57'],
+            ['league' => 'ncaaw', 'name' => 'Florida',  'abbr' => 'fla', 'id' => '57'],
+            ['league' => 'ncaam', 'name' => 'Miami',    'abbr' => 'mia', 'id' => '2390'],
+            ['league' => 'ncaaw', 'name' => 'Miami',    'abbr' => 'mia', 'id' => '2390'],
         ],
     ],
     'great_lakes' => [
@@ -210,6 +259,14 @@ $CITIES = [
             ['league' => 'nfl', 'name' => 'Colts',          'abbr' => 'ind'],
             ['league' => 'nba', 'name' => 'Pacers',         'abbr' => 'ind'],
             ['league' => 'wnba', 'name' => 'Fever',         'abbr' => 'ind'],
+            ['league' => 'ncaam', 'name' => 'Indiana',      'abbr' => 'iu', 'id' => '84'],
+            ['league' => 'ncaaw', 'name' => 'Indiana',      'abbr' => 'iu', 'id' => '84'],
+            ['league' => 'ncaam', 'name' => 'Ohio State',   'abbr' => 'osu', 'id' => '194'],
+            ['league' => 'ncaaw', 'name' => 'Ohio State',   'abbr' => 'osu', 'id' => '194'],
+            ['league' => 'ncaam', 'name' => 'Michigan St',  'abbr' => 'msu', 'id' => '127'],
+            ['league' => 'ncaaw', 'name' => 'Michigan St',  'abbr' => 'msu', 'id' => '127'],
+            ['league' => 'ncaam', 'name' => 'Michigan',     'abbr' => 'mich', 'id' => '130'],
+            ['league' => 'ncaaw', 'name' => 'Michigan',     'abbr' => 'mich', 'id' => '130'],
         ],
     ],
     'chicago_wisconsin' => [
@@ -224,6 +281,12 @@ $CITIES = [
             ['league' => 'nba', 'name' => 'Bucks',      'abbr' => 'mil'],
             ['league' => 'mlb', 'name' => 'Brewers',    'abbr' => 'mil'],
             ['league' => 'wnba', 'name' => 'Sky',       'abbr' => 'chi'],
+            ['league' => 'ncaam', 'name' => 'Illinois',  'abbr' => 'ill', 'id' => '356'],
+            ['league' => 'ncaaw', 'name' => 'Illinois',  'abbr' => 'ill', 'id' => '356'],
+            ['league' => 'ncaam', 'name' => 'Wisconsin', 'abbr' => 'wis', 'id' => '275'],
+            ['league' => 'ncaaw', 'name' => 'Wisconsin', 'abbr' => 'wis', 'id' => '275'],
+            ['league' => 'ncaam', 'name' => 'Marquette', 'abbr' => 'marq', 'id' => '269'],
+            ['league' => 'ncaaw', 'name' => 'Marquette', 'abbr' => 'marq', 'id' => '269'],
         ],
     ],
     'upper_midwest' => [
@@ -235,6 +298,8 @@ $CITIES = [
             ['league' => 'nhl', 'name' => 'Wild',         'abbr' => 'min'],
             ['league' => 'nhl', 'name' => 'Jets',         'abbr' => 'wpg'],
             ['league' => 'wnba', 'name' => 'Lynx',        'abbr' => 'min'],
+            ['league' => 'ncaam', 'name' => 'Minnesota',  'abbr' => 'minn', 'id' => '135'],
+            ['league' => 'ncaaw', 'name' => 'Minnesota',  'abbr' => 'minn', 'id' => '135'],
         ],
     ],
     'midwest_central' => [
@@ -247,6 +312,10 @@ $CITIES = [
             ['league' => 'nba', 'name' => 'Pelicans',   'abbr' => 'no'],
             ['league' => 'mlb', 'name' => 'Cardinals',  'abbr' => 'stl'],
             ['league' => 'nhl', 'name' => 'Blues',      'abbr' => 'stl'],
+            ['league' => 'ncaam', 'name' => 'Kansas',   'abbr' => 'ku', 'id' => '2305'],
+            ['league' => 'ncaaw', 'name' => 'Kansas',   'abbr' => 'ku', 'id' => '2305'],
+            ['league' => 'ncaam', 'name' => 'Memphis',  'abbr' => 'mem', 'id' => '235'],
+            ['league' => 'ncaaw', 'name' => 'Memphis',  'abbr' => 'mem', 'id' => '235'],
         ],
     ],
     'texas_oklahoma' => [
@@ -261,7 +330,15 @@ $CITIES = [
             ['league' => 'mlb', 'name' => 'Astros',     'abbr' => 'hou'],
             ['league' => 'nba', 'name' => 'Thunder',    'abbr' => 'okc'],
             ['league' => 'nba', 'name' => 'Spurs',      'abbr' => 'sa'],
-            ['league' => 'wnba', 'name' => 'Wings',     'abbr' => 'dal'],
+            ['league' => 'wnba', 'name' => 'Wings',      'abbr' => 'dal'],
+            ['league' => 'ncaam', 'name' => 'Houston',   'abbr' => 'hou', 'id' => '248'],
+            ['league' => 'ncaaw', 'name' => 'Houston',   'abbr' => 'hou', 'id' => '248'],
+            ['league' => 'ncaam', 'name' => 'Baylor',    'abbr' => 'bay', 'id' => '239'],
+            ['league' => 'ncaaw', 'name' => 'Baylor',    'abbr' => 'bay', 'id' => '239'],
+            ['league' => 'ncaam', 'name' => 'Texas',     'abbr' => 'tex', 'id' => '251'],
+            ['league' => 'ncaaw', 'name' => 'Texas',     'abbr' => 'tex', 'id' => '251'],
+            ['league' => 'ncaam', 'name' => 'Oklahoma',  'abbr' => 'ou', 'id' => '201'],
+            ['league' => 'ncaaw', 'name' => 'Oklahoma',  'abbr' => 'ou', 'id' => '201'],
         ],
     ],
     'mountain_west' => [
@@ -280,6 +357,8 @@ $CITIES = [
             ['league' => 'nhl', 'name' => 'Mammoth',        'abbr' => 'utah'],
             ['league' => 'wnba', 'name' => 'Aces',          'abbr' => 'lv'],
             ['league' => 'wnba', 'name' => 'Mercury',       'abbr' => 'phx'],
+            ['league' => 'ncaam', 'name' => 'Arizona',      'abbr' => 'ariz', 'id' => '12'],
+            ['league' => 'ncaaw', 'name' => 'Arizona',      'abbr' => 'ariz', 'id' => '12'],
         ],
     ],
     'southern_california' => [
@@ -295,6 +374,10 @@ $CITIES = [
             ['league' => 'mlb', 'name' => 'Padres',   'abbr' => 'sd'],
             ['league' => 'nhl', 'name' => 'Ducks',    'abbr' => 'ana'],
             ['league' => 'wnba', 'name' => 'Sparks',  'abbr' => 'la'],
+            ['league' => 'ncaam', 'name' => 'UCLA',   'abbr' => 'ucla', 'id' => '26'],
+            ['league' => 'ncaaw', 'name' => 'UCLA',   'abbr' => 'ucla', 'id' => '26'],
+            ['league' => 'ncaam', 'name' => 'USC',    'abbr' => 'usc', 'id' => '30'],
+            ['league' => 'ncaaw', 'name' => 'USC',    'abbr' => 'usc', 'id' => '30'],
         ],
     ],
     'northern_california' => [
@@ -307,6 +390,10 @@ $CITIES = [
             ['league' => 'mlb', 'name' => 'Athletics', 'abbr' => 'ath'],
             ['league' => 'nhl', 'name' => 'Sharks',    'abbr' => 'sj'],
             ['league' => 'wnba', 'name' => 'Valkyries', 'abbr' => 'gs'],
+            ['league' => 'ncaam', 'name' => 'Stanford',  'abbr' => 'stan', 'id' => '24'],
+            ['league' => 'ncaaw', 'name' => 'Stanford',  'abbr' => 'stan', 'id' => '24'],
+            ['league' => 'ncaam', 'name' => 'California', 'abbr' => 'cal', 'id' => '25'],
+            ['league' => 'ncaaw', 'name' => 'California', 'abbr' => 'cal', 'id' => '25'],
         ],
     ],
     'pacific_northwest' => [
@@ -319,6 +406,10 @@ $CITIES = [
             ['league' => 'nhl', 'name' => 'Canucks',        'abbr' => 'van'],
             ['league' => 'wnba', 'name' => 'Storm',         'abbr' => 'sea'],
             ['league' => 'wnba', 'name' => 'Fire',          'abbr' => 'por'],
+            ['league' => 'ncaam', 'name' => 'Gonzaga',      'abbr' => 'gonz', 'id' => '2250'],
+            ['league' => 'ncaaw', 'name' => 'Gonzaga',      'abbr' => 'gonz', 'id' => '2250'],
+            ['league' => 'ncaam', 'name' => 'Oregon',       'abbr' => 'ore', 'id' => '2483'],
+            ['league' => 'ncaaw', 'name' => 'Oregon',       'abbr' => 'ore', 'id' => '2483'],
         ],
     ],
     'western_canada' => [
