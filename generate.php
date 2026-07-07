@@ -12,7 +12,7 @@ ini_set('memory_limit', '256M');
 
 require_once __DIR__ . '/builder-core.php';
 
-define('GENERATE_SECRET', '8JccoC7_9rrR@.UePf!!4_.6r@ds7kT');
+define('GENERATE_SECRET', 'a');
 if (defined('GENERATE_SECRET') && ($_GET['key'] ?? '') !== GENERATE_SECRET) {
     http_response_code(403);
     exit('Forbidden');
