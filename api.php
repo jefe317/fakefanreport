@@ -379,6 +379,7 @@ function get_upcoming_game(?array $scheduleData, string $teamAbbr): ?array
         'is_home'    => ($team['homeAway'] ?? '') === 'home',
         'date_str'   => isset($event['date']) ? date('M j, g:i A', strtotime($event['date'])) : '',
         'date_raw'   => $event['date'] ?? '', // Passed through for debugging
+        'game_id'    => $event['id'] ?? null, // stable ESPN id, shared by both teams' feeds (for dedup)
     ];
 }
 
@@ -447,6 +448,7 @@ function summarize_game(array $event, string $teamAbbr): ?array
         'is_home'    => ($team['homeAway'] ?? '') === 'home',
         'date'       => isset($event['date']) ? date('M j', strtotime($event['date'])) : '',
         'date_raw'   => $event['date'] ?? '', // Passed through for debugging
+        'game_id'    => $event['id'] ?? null, // stable ESPN id, shared by both teams' feeds (for dedup)
     ];
 }
 

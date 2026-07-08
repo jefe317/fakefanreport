@@ -175,6 +175,7 @@ function aggregate_database(array $rawByKey, array $CITIES, array $MAJOR_EVENTS,
             'opp_score'  => $result['opp_score'],
             'date_str'   => $relativeDate,
             'date_raw'   => $result['date_raw'],
+            'game_id'    => $result['game_id'] ?? null,
         ];
         if ($gameTimestamp > $fifaLatestTimestamp) $fifaLatestTimestamp = $gameTimestamp;
     }
@@ -215,6 +216,7 @@ function aggregate_database(array $rawByKey, array $CITIES, array $MAJOR_EVENTS,
             'opponent'  => $upcomingResult['opponent'],
             'date_str'  => $relativeUpcoming,
             'date_raw'  => $upcomingResult['date_raw'],
+            'game_id'   => $upcomingResult['game_id'] ?? null,
         ];
     }
 
@@ -275,6 +277,7 @@ function aggregate_database(array $rawByKey, array $CITIES, array $MAJOR_EVENTS,
                     'opp_score'  => $result['opp_score'],
                     'date_str'   => $relativeDate,
                     'date_raw'   => $result['date_raw'],
+                    'game_id'    => $result['game_id'] ?? null,
                 ];
 
                 $leaguesData[$leagueKey]['games'][] = $gameRecord;
@@ -311,6 +314,7 @@ function aggregate_database(array $rawByKey, array $CITIES, array $MAJOR_EVENTS,
                     'opponent'  => $upcomingResult['opponent'],
                     'date_str'  => $relativeUpcoming,
                     'date_raw'  => $upcomingResult['date_raw'],
+                    'game_id'   => $upcomingResult['game_id'] ?? null,
                 ];
 
                 $leaguesData[$leagueKey]['upcoming'][] = $upcomingRecord;
@@ -401,6 +405,9 @@ function aggregate_database(array $rawByKey, array $CITIES, array $MAJOR_EVENTS,
                 'abbr'      => $team['abbr'],
                 'city_key'  => $cityKey,
                 'city_label'=> $cityData['label'],
+                'city'      => $team['city'] ?? '',
+                'state'     => $team['state'] ?? '',
+                'search'    => $team['search'] ?? '',
             ];
         }
     }
@@ -408,6 +415,7 @@ function aggregate_database(array $rawByKey, array $CITIES, array $MAJOR_EVENTS,
         $allTeamsOut[] = [
             'name' => 'USA', 'league' => 'FIFA', 'abbr' => 'usa',
             'city_key' => 'all', 'city_label' => 'National',
+            'city' => '', 'state' => 'United States', 'search' => 'USMNT',
         ];
     }
     $database['_all_teams'] = $allTeamsOut;
@@ -517,7 +525,8 @@ function apply_live_scoreboards(array &$database, array $liveRawByKey, array $CI
                     'vsAt'       => ($competitor['homeAway'] ?? '') === 'home' ? 'vs' : '@',
                     'opponent'   => $opponent['team']['displayName'] ?? ($opponent['team']['name'] ?? 'Opponent'),
                     'progress'   => $progress,
-                    'date_raw'   => $event['date']
+                    'date_raw'   => $event['date'],
+                    'game_id'    => $event['id'] ?? null,
                 ];
 
                 $applyLiveToBucket = function(&$leagueBucket) use ($record) {
@@ -598,6 +607,7 @@ function apply_live_scoreboards(array &$database, array $liveRawByKey, array $CI
 function render_index_html(array $database, array $CITIES, string $timestamp): string
 {
     $jsonDatabase = json_encode($database, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+    $updatedAtMs  = time() * 1000; // build time, for the "last updated" hover tooltip
 
     $optionsHtml = '';
     foreach ($CITIES as $key => $city) {
@@ -701,7 +711,11 @@ header("Cache-Control: public, max-age=300");
     .game-card.win { background: var(--win-bg); border-color: var(--win-border); }
     .game-card.loss { background: var(--loss-bg); border-color: var(--loss-border); }
     .game-card.tie,
-    .game-card.postponed { background: var(--neutral-bg); border-color: var(--neutral-border); }
+    .game-card.postponed,
+    .game-card.both-sides { background: var(--neutral-bg); border-color: var(--neutral-border); }
+
+    /* Dates carry a "time ago" tooltip on hover */
+    .game-date, .event-date-inner { cursor: help; border-bottom: 1px dotted var(--border); }
     
     /* Live Game Styles */
     .game-card.live { background: #fff1f2; border-color: #fecdd3; border-left: 3px solid #e11d48; }
@@ -720,7 +734,8 @@ header("Cache-Control: public, max-age=300");
     .no-results { color: var(--text-secondary); font-style: italic; padding: 0.15rem 0; margin: 0 0 0.3rem 0; font-size: 0.85rem; }
     
     .last-updated { font-size: 0.7rem; color: var(--text-secondary); text-align: center; margin-top: 1rem; }
-    .page-loaded { font-size: 0.65rem; color: var(--text-secondary); text-align: center; margin-top: 0.15rem; opacity: 0.8; }
+    .page-loaded { font-size: 0.7rem; color: var(--text-secondary); text-align: center; margin-top: 0.15rem; }
+    .update-schedule { font-size: 0.7rem; color: var(--text-secondary); text-align: center; margin-top: 0.15rem; }
 
     /* Major events (Super Bowl, Finals, World Cup, etc.) */
     .major-events { margin-top: 0.75rem; }
@@ -845,8 +860,9 @@ header("Cache-Control: public, max-age=300");
 
     <div id="results-container"></div>
 
-    <div class="last-updated">Scores last updated: {$timestamp}</div>
+    <div class="last-updated">Scores last updated: <span id="scores-updated-ts">{$timestamp}</span></div>
     <div class="page-loaded" id="page-loaded-line"></div>
+    <div class="update-schedule">Live scores updated every 30 minutes, Results updated at 3 am</div>
 
 </main>
 
@@ -854,6 +870,7 @@ header("Cache-Control: public, max-age=300");
     const sportsData = {$jsonDatabase};
     const majorEvents = sportsData._major_events || [];
     const allTeams = sportsData._all_teams || [];
+    const SCORES_UPDATED_AT = {$updatedAtMs};
 
     const citySelect = document.getElementById('city');
     const resultsContainer = document.getElementById('results-container');
@@ -960,9 +977,11 @@ header("Cache-Control: public, max-age=300");
     function matchesSearch(team, query) {
         if (!query) return true;
         const q = query.toLowerCase();
-        return team.name.toLowerCase().includes(q)
-            || team.league.toLowerCase().includes(q)
-            || team.city_label.toLowerCase().includes(q);
+        const haystack = [
+            team.name, team.league, team.city_label,
+            team.city, team.state, team.search
+        ].filter(Boolean).join(' ').toLowerCase();
+        return haystack.includes(q);
     }
 
     function renderTeamChecklist() {
@@ -991,7 +1010,7 @@ header("Cache-Control: public, max-age=300");
             html += `
                 <div class="team-check-item\${visible ? '' : ' hidden'}" data-team-key="\${escapeHTML(key)}" data-league="\${escapeHTML(team.league)}">
                     <input type="checkbox" id="\${inputId}"\${checked} data-team-key="\${escapeHTML(key)}">
-                    <label for="\${inputId}">\${escapeHTML(team.name)} <span class="team-city-tag">\${escapeHTML(team.city_label)}</span></label>
+                    <label for="\${inputId}">\${escapeHTML(team.city ? team.city + ' ' + team.name : team.name)} <span class="team-city-tag">- \${escapeHTML(team.city_label)}</span></label>
                 </div>
             `;
         }
@@ -1084,9 +1103,63 @@ header("Cache-Control: public, max-age=300");
     }
 
     function escapeHTML(str) {
-        return String(str).replace(/[&<>'"]/g, 
+        return String(str).replace(/[&<>'"]/g,
             tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
         );
+    }
+
+    // Human "time ago"/"in …" string for a hover tooltip. Accepts an ISO
+    // date string or an epoch (ms). Returns '' for anything unparseable.
+    function relativeTime(input) {
+        const then = (typeof input === 'number') ? input : Date.parse(input);
+        if (!then || isNaN(then)) return '';
+        const diffMs = then - Date.now();
+        const future = diffMs > 0;
+        const s = Math.abs(diffMs) / 1000;
+        if (s < 45) return 'just now';
+        const units = [
+            ['year', 31536000], ['month', 2592000], ['week', 604800],
+            ['day', 86400], ['hour', 3600], ['minute', 60]
+        ];
+        for (const [name, secs] of units) {
+            if (s >= secs) {
+                const n = Math.round(s / secs);
+                const label = `\${n} \${name}\${n === 1 ? '' : 's'}`;
+                return future ? `in \${label}` : `\${label} ago`;
+            }
+        }
+        return 'just now';
+    }
+
+    // Wrap a baked-in date string in a span whose hover tooltip is the
+    // relative time computed from its raw ISO date.
+    function dateWithTooltip(dateStr, dateRaw, cls) {
+        const rel = relativeTime(dateRaw);
+        const titleAttr = rel ? ` title="\${escapeHTML(rel)}"` : '';
+        return `<span class="\${cls}"\${titleAttr}>\${escapeHTML(dateStr)}</span>`;
+    }
+
+    // Collapse two perspectives of the same game (both tracked teams played
+    // each other) into one entry. Uses the stable ESPN game_id when present,
+    // falling back to a date + sorted-teams composite key. Marks bothSides
+    // and prefers the home-team ('vs') perspective for a natural read.
+    function dedupeGames(records) {
+        const seen = new Map();
+        const out = [];
+        for (const g of records) {
+            const key = (g.game_id != null && g.game_id !== '')
+                ? `id:\${g.game_id}`
+                : `k:\${g.date_raw}::\${[String(g.team_name), String(g.opponent)].sort().join('|')}`;
+            if (seen.has(key)) {
+                const entry = out[seen.get(key)];
+                entry.bothSides = true;
+                if (entry.game.vsAt !== 'vs' && g.vsAt === 'vs') entry.game = g;
+            } else {
+                seen.set(key, out.length);
+                out.push({ game: g, bothSides: false });
+            }
+        }
+        return out;
     }
 
     function renderMajorEventsHtml() {
@@ -1105,7 +1178,7 @@ header("Cache-Control: public, max-age=300");
                         \${evt.is_final ? '–' : 'vs'}
                         <span class="\${bClass.trim()}">\${escapeHTML(evt.team_b)}\${evt.is_final ? ' ' + evt.team_b_score : ''}</span>
                     </span>
-                    <span class="event-date">(\${escapeHTML(evt.date_str)})</span>
+                    <span class="event-date">(\${dateWithTooltip(evt.date_str, evt.date_raw, 'event-date-inner')})</span>
                 </div>
             `;
         });
@@ -1148,14 +1221,14 @@ header("Cache-Control: public, max-age=300");
 
             // 1. Upcoming Games
             if (hasUpcoming) {
-                data.upcoming.forEach(game => {
-                    const title = `\${game.team_name} \${game.label}`;
-                    const details = `\${game.vsAt} \${game.opponent} (\${game.date_str})`;
+                dedupeGames(data.upcoming).forEach(({ game }) => {
+                    const title = `\${game.team_name}`;
+                    const details = `\${game.vsAt} \${game.opponent} `;
 
                     html += `
                         <div class="game-card upcoming">
                             <strong>\${escapeHTML(title)}</strong>
-                            <span class="game-details">\${escapeHTML(details)}</span>
+                            <span class="game-details">\${escapeHTML(details)}(\${dateWithTooltip(game.date_str, game.date_raw, 'game-date')})</span>
                         </div>
                     `;
                 });
@@ -1163,7 +1236,7 @@ header("Cache-Control: public, max-age=300");
 
             // 2. Live Games
             if (hasLive) {
-                data.live.forEach(game => {
+                dedupeGames(data.live).forEach(({ game }) => {
                     const title = `\${game.team_name} — \${game.live_status}`;
                     const details = `\${game.team_score}-\${game.opp_score} \${game.vsAt} \${game.opponent} (\${game.progress})`;
 
@@ -1179,21 +1252,24 @@ header("Cache-Control: public, max-age=300");
 
             // 3. Completed Games
             if (hasGames) {
-                data.games.forEach(game => {
-                    const title = `\${game.team_name} \${game.outcome} \${game.label}`;
+                dedupeGames(data.games).forEach(({ game, bothSides }) => {
+                    const title = `\${game.team_name} \${game.outcome}`;
                     const scorePart = game.outcome === 'Postponed' ? '' : `\${game.team_score}-\${game.opp_score} `;
-                    const details = `— \${scorePart}\${game.vsAt} \${game.opponent} (\${game.date_str})`;
-                    
+                    const details = `— \${scorePart}\${game.vsAt} \${game.opponent} `;
+
+                    // When both tracked teams played each other, collapse to one
+                    // card and use the neutral "tied" palette to signal it.
                     let outcomeClass = '';
-                    if (game.outcome === 'Won') outcomeClass = ' win';
-                    if (game.outcome === 'Lost') outcomeClass = ' loss';
-                    if (game.outcome === 'Tied') outcomeClass = ' tie';
-                    if (game.outcome === 'Postponed') outcomeClass = ' postponed';
-                    
+                    if (bothSides) outcomeClass = ' both-sides';
+                    else if (game.outcome === 'Won') outcomeClass = ' win';
+                    else if (game.outcome === 'Lost') outcomeClass = ' loss';
+                    else if (game.outcome === 'Tied') outcomeClass = ' tie';
+                    else if (game.outcome === 'Postponed') outcomeClass = ' postponed';
+
                     html += `
                         <div class="game-card\${outcomeClass}">
                             <strong>\${escapeHTML(title)}</strong>
-                            <span class="game-details">\${escapeHTML(details)}</span>
+                            <span class="game-details">\${escapeHTML(details)}(\${dateWithTooltip(game.date_str, game.date_raw, 'game-date')})</span>
                         </div>
                     `;
                 });
@@ -1256,6 +1332,14 @@ header("Cache-Control: public, max-age=300");
             hour: 'numeric', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
         }).format(loadedDate);
         pageLoadedLine.textContent = `Page loaded: \${formatted}`;
+        pageLoadedLine.title = relativeTime(pageLoadedAt);
+    }
+
+    // "Scores last updated" hover → relative time from the build timestamp
+    const scoresUpdatedTs = document.getElementById('scores-updated-ts');
+    if (scoresUpdatedTs) {
+        const rel = relativeTime(SCORES_UPDATED_AT);
+        if (rel) scoresUpdatedTs.title = rel;
     }
 
     function getChicagoParts(date) {
@@ -1272,7 +1356,7 @@ header("Cache-Control: public, max-age=300");
         };
     }
 
-    function mostRecent2amCentral() {
+    function mostRecent3amCentral() {
         const now = new Date();
         const chicagoNow = getChicagoParts(now);
 
@@ -1286,20 +1370,20 @@ header("Cache-Control: public, max-age=300");
             return guess + (guess - guessAsUtc);
         }
 
-        const todayAt2amUtc = chicagoWallClockToUtc(chicagoNow.year, chicagoNow.month, chicagoNow.day, 2);
+        const todayAt3amUtc = chicagoWallClockToUtc(chicagoNow.year, chicagoNow.month, chicagoNow.day, 3);
 
-        if (todayAt2amUtc <= now.getTime()) return todayAt2amUtc;
-        
+        if (todayAt3amUtc <= now.getTime()) return todayAt3amUtc;
+
         const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
         const chicagoYesterday = getChicagoParts(yesterday);
-        return chicagoWallClockToUtc(chicagoYesterday.year, chicagoYesterday.month, chicagoYesterday.day, 2);
+        return chicagoWallClockToUtc(chicagoYesterday.year, chicagoYesterday.month, chicagoYesterday.day, 3);
     }
 
     const staleBanner = document.getElementById('stale-banner');
     const staleRefreshLink = document.getElementById('stale-refresh-link');
 
     function checkStaleness() {
-        if (pageLoadedAt < mostRecent2amCentral()) staleBanner.hidden = false;
+        if (pageLoadedAt < mostRecent3amCentral()) staleBanner.hidden = false;
     }
 
     staleRefreshLink.addEventListener('click', (e) => {
